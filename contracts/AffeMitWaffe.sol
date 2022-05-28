@@ -25,8 +25,10 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     // would be more accurate to call this variable something like 'openSeaCollectionAdmin' (but sadly
     // OpenSea is looking for 'owner' specifically.)
     address public owner;
-    
 
+    uint8 constant MAX_SUPPLY = 250;
+    uint8 public numTokensMinted;
+    
     // From testing, it seems OpenSea will only honor a new collection-level administrator (the person who can
     // login to the interface and, for example, change royalty amount/destination), if an event
     // is emmitted, as coded in the OpenZeppelin Ownable contract, announcing the ownership transfer.
@@ -73,9 +75,16 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         _unpause();
     }
 
+
+    // Capabilities of the MINTER_ROLE
+
+    // the main minting function
     function safeMint(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
+        require(numTokensMinted < MAX_SUPPLY, "The maximum number of tokens that can ever be minted has been reached.");
+        numTokensMinted += 1;
         _safeMint(to, tokenId);
     }
+
 
     function _baseURI() internal pure override returns (string memory) {
         return "http://amazons.s3.something/";
