@@ -55,20 +55,30 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     }
 
 
-    function _baseURI() internal pure override returns (string memory) {
-        return "http://amazons.s3.something/";
-    }
+    // Capabilities of the PAUSER_ROLE
 
-    function pause() public onlyRole(PAUSER_ROLE) {
+    // create a function which can be called externally by an acount with the
+    // PAUSER_ROLE. This function, calls the internal _pause() function
+    // inherited from Pausable contract, and its purpose is to pause all transfers
+    // of tokens in the contract (which includes minting/burning/transferring)
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    // create a function which can be called externally by an acount with the
+    // PAUSER_ROLE. This function, calls the internal _uppause() function
+    // inherited from Pausable contract, and its purpose is to *un*pause all transfers
+    // of tokens in the contract (which includes minting/burning/transferring)
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
     function safeMint(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
         _safeMint(to, tokenId);
+    }
+
+    function _baseURI() internal pure override returns (string memory) {
+        return "http://amazons.s3.something/";
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
