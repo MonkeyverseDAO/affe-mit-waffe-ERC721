@@ -112,6 +112,13 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         _setContractURI(newContractURI);
     }
 
+    
+    // Capabilities of the METADATA_FREEZER_ROLE
+
+    function freezeURIsForever() external onlyRole(METADATA_FREEZER_ROLE) allowIfNotFrozen {
+        _freezeURIsForever();
+    }
+
 
     // Information fetching - external/public
 
