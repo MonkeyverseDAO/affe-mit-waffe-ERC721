@@ -101,30 +101,48 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
 
     // Capabilities of the PAUSER_ROLE
 
-    // create a function which can be called externally by an acount with the
-    // PAUSER_ROLE. This function, calls the internal _pause() function
-    // inherited from Pausable contract, and its purpose is to pause all transfers
-    // of tokens in the contract (which includes minting/burning/transferring)
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   PAUSER_ROLE, with the purpose of (in the case of an emergency) pausing all transfers
+     *   of tokens in the contract (which includes minting/burning/transferring.)
+     * @dev This function calls the internal _pause() function from
+     *   OpenZeppelin's Pausable contract.
+     */
     function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
-    // create a function which can be called externally by an acount with the
-    // PAUSER_ROLE. This function, calls the internal _uppause() function
-    // inherited from Pausable contract, and its purpose is to *un*pause all transfers
-    // of tokens in the contract (which includes minting/burning/transferring)
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   PAUSER_ROLE, with the purpose of UNpausing all transfers
+     *   of tokens in the contract (which includes minting/burning/transferring.)
+     * @dev This function calls the internal _unpause() function from
+     *   OpenZeppelin's Pausable contract.
+     */
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
-    // TO DO
     /**
-     * To be updated by contract owner to allow for the loan functionality to be toggled
+     * @notice A function which can be called externally by an acount with the
+     *   PAUSER_ROLE, with the purpose of pausing all token lending. When loans
+     *   are paused, new loans cannot be made, but existing loans can be recalled.
+     * @dev This function calls the internal _pauseLending() function of the
+     *   ERC721Lending contract.
      */
-    // function setLoansPaused(bool _loansPaused) public onlyOwner {
-    //     require(loansPaused != _loansPaused, "NEW_STATE_IDENTICAL_TO_OLD_STATE");
-    //     loansPaused = _loansPaused;
-    // }
+    function pauseLending() external onlyRole(PAUSER_ROLE) {
+        _pauseLending();
+    }
+
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   PAUSER_ROLE, with the purpose of UNpausing all token lending.
+     * @dev This function calls the internal _unpauseLending() function of the
+     *   ERC721Lending contract.
+     */
+    function unpauseLending() external onlyRole(PAUSER_ROLE) {
+        _unpauseLending();
+    }
 
 
     // Capabilities of the MINTER_ROLE
