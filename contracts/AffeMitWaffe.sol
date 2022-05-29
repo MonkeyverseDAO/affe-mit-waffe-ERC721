@@ -37,9 +37,9 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
 
-    constructor(string memory name, string memory symbol, string memory baseTokenURI, string memory contractURI)
+    constructor(string memory name, string memory symbol, string memory initialBaseURI, string memory initialContractURI)
     ERC721(name, symbol)
-    URIManager(baseTokenURI, contractURI) {
+    URIManager(initialBaseURI, initialContractURI) {
         // To start with we will only grant the DEFAULT_ADMIN_ROLE role to the msg.sender
         // The DEFAULT_ADMIN_ROLE is not granted any rights initially. The only privileges
         // the DEFAULT_ADMIN_ROLE has at contract deployment time are: the ability to grant other
@@ -108,8 +108,6 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "URI query for nonexistent token");
-
-        // return a concatenation of the baseURI (of the collection), with the tokenID, and the file extension.
         return _buildTokenURI(tokenId);
     }
 
