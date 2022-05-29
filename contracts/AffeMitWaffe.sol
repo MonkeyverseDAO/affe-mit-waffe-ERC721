@@ -9,7 +9,12 @@ import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Burnable.sol
 import "./URIManager.sol";
 import "./ERC2981GlobalRoyalties.sol";
 
-
+/**
+ * @title Affe mit Waffe NFT smart contract.
+ * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO. With much
+ *   gratitude to the collaborative spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
+ *   provided their code for other projects to learn from and use.
+ */
 contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, ERC2981GlobalRoyalties, URIManager {
     // create the hashes that identify various roles
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -18,26 +23,49 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     bytes32 public constant METADATA_UPDATER_ROLE = keccak256("METADATA_UPDATER_ROLE");
     bytes32 public constant METADATA_FREEZER_ROLE = keccak256("METADATA_FREEZER_ROLE");
 
-    // The owner variable below is 'honorary' in the sense that it serves no purpose
-    // as far as the smart contract itself is concerned. The only reason for implementing this variable
-    // is that OpenSea queries owner() (according to an article in their Help Center) in order to decide
-    // who can login to the OpenSea interface and change collection-wide settings such as the collection
-    // banner, or more importantly, royalty amount and destination (as of this writing, OpenSea
-    // implements their own royalty settings, rather than EIP-2981.)
-    // Semantically, for our purposes (because this contract uses AccessControl rather than Ownable) it
-    // would be more accurate to call this variable something like 'openSeaCollectionAdmin' (but sadly
-    // OpenSea is looking for 'owner' specifically.)
+    /**
+     * @notice The owner variable below is 'honorary' in the sense that it serves no purpose
+     *   as far as the smart contract itself is concerned. The only reason for implementing
+     *   this variable, is that OpenSea queries owner() (according to an article in their Help
+     *   Center) in order to decide who can login to the OpenSea interface and change
+     *   collection-wide settings, such as the collection banner, or more importantly, royalty
+     *   amount and destination (as of this writing, OpenSea implements their own royalty
+     *   settings, rather than EIP-2981.)
+     *   Semantically, for our purposes (because this contract uses AccessControl rather than
+     *   Ownable) it would be more accurate to call this variable something like
+     *   'openSeaCollectionAdmin' (but sadly OpenSea is looking for 'owner' specifically.)
+     */
     address public owner;
 
     uint8 constant MAX_SUPPLY = 250;
+    /**
+     * @dev The variable below keeps track of the number of Affen that have been minted.
+     *   HOWEVER, note that the variable is never decreased. Therefore, if an Affe is burned
+     *   this does not allow for a new Affe to be minted. There will ever only be 250 MINTED.
+     */
     uint8 public numTokensMinted;
     
-    // From testing, it seems OpenSea will only honor a new collection-level administrator (the person who can
-    // login to the interface and, for example, change royalty amount/destination), if an event
-    // is emmitted, as coded in the OpenZeppelin Ownable contract, announcing the ownership transfer.
+    /**
+     * @dev From our testing, it seems OpenSea will only honor a new collection-level administrator
+     *   (the person who can login to the interface and, for example, change royalty
+     *   amount/destination), if an event is emmitted (as coded in the OpenZeppelin Ownable contract)
+     *   announcing the ownership transfer. Therefore, in order to ensure the OpenSea collection
+     *   admin can be updated if ever needed, the following event has been included in this smart
+     *   contract.
+     */
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-
+    /**
+     * @notice Constructor of the Affe mit Waffe ERC-721 NFT smart contract.
+     * @param name is the name of the ERC-721 smart contract and NFT collection.
+     * @param symbol is the symbol for the collection.
+     * @param initialBaseURI is the base URI string that will concatenated with the tokenId to create
+     *   the URI where each token's metadata can be found.
+     * @param initialContractURI is the location where metadata about the collection as a whole
+     *   can be found. For the most part it is an OpenSea-specific requirement (they will try
+     *   to find metadata about the collection at this URI when the collecitons is initially
+     *   imported into OpenSea.)
+     */
     constructor(string memory name, string memory symbol, string memory initialBaseURI, string memory initialContractURI)
     ERC721(name, symbol)
     URIManager(initialBaseURI, initialContractURI) {
@@ -51,9 +79,16 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         setHonoraryOwner(msg.sender);
     }
 
-    // The 'honorary' portion of this function's name refers to the fact that the 'owner' variable
-    // serves no purpose in this smart contract itself. 'Ownership' (so to speak) is only implemented here
-    // to allow for certain collection-wide admin functionality within the OpenSea web interface.
+    /**
+     * @notice The 'honorary' portion of this function's name refers to the fact that the 'owner' variable
+     *   serves no purpose in this smart contract itself. 'Ownership' is mostly meaningless in the context
+     *   of a smart contract that implements security with RBAC (Role Based Access Control); so 'owndership'
+     *   is only implemented here to allow for certain collection-wide admin functionality within the
+     *   OpenSea web interface.
+     * @param honoraryOwner is the address that one would like to designate as the 'owner' of this contract
+     *   (most likely with the sole purpose of being able to login to OpenSea as an administrator of the
+     *   collection.)
+     */
     function setHonoraryOwner(address honoraryOwner) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(honoraryOwner != address(0), "New owner cannot be the zero address.");
         address priorOwner = owner;
