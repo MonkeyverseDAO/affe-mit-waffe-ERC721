@@ -18,8 +18,13 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     using Strings for uint256;
 
     mapping (address => uint256) public totalLoanedPerAddress;
-    mapping (uint256 => address) public tokenOwnersOnLoan;
-    uint256 private currentLoanIndex = 0;
+    /**
+    * @notice The mapping below keeps track of the original owner of each token, in other words,
+    *   the address that truly owns the token (and has simply lent it out.) This is the address
+    *   that is allowed to retrieve the token (to end the loan.)
+    */
+    mapping (uint256 => address) public mapFromTokenIdToRightfulOwner;
+    uint256 private currentLoanCounter = 0;
 
     /**
      * @notice A variable that servers two purposes. 1) To allow the 'outside world' to easily query
@@ -69,49 +74,52 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         require(msg.sender == ownerOf(tokenId), "ERC721Lending: Trying to lend a token that is not owned.");
         require(msg.sender != receiver, "ERC721Lending: Lending to self (the current owner's address) is not permitted.");
         require(receiver != address(0), "ERC721Lending: Loans to the zero 0x0 address are not permitted.");
-        require(tokenOwnersOnLoan[tokenId] == address(0), "ERC721Lending: Trying to lend a token that is already on loan.");
+        require(mapFromTokenIdToRightfulOwner[tokenId] == address(0), "ERC721Lending: Trying to lend a token that is already on loan.");
 
         // Transfer the token
         safeTransferFrom(msg.sender, receiver, tokenId);
 
         // Add it to the mapping of originally loaned tokens
-        tokenOwnersOnLoan[tokenId] = msg.sender;
+        mapFromTokenIdToRightfulOwner[tokenId] = msg.sender;
 
         // Add to the owner's loan balance
         uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
         totalLoanedPerAddress[msg.sender] = loansByAddress + 1;
-        currentLoanIndex = currentLoanIndex + 1;
+        currentLoanCounter = currentLoanCounter + 1;
 
         emit Loan(msg.sender, receiver, tokenId);
     }
 
-    // /**
-    //  * @notice Allow owner to loan their tokens to other addresses
-    //  */
-    // function retrieveLoan(uint256 tokenId) external nonReentrant {
-    //     address borrowerAddress = ownerOf(tokenId);
-    //     require(borrowerAddress != msg.sender, "Trying to retrieve their owned loaned token");
-    //     require(tokenOwnersOnLoan[tokenId] == msg.sender, "Trying to retrieve token not on loan");
+    /**
+     * @notice Allow the rightful owner of a token to retrieve it, if it is currently on loan.
+     * @param tokenId is the integer ID of the token that should be retrieved.
+     */
+    function retrieveLoan(uint256 tokenId) external nonReentrant {
+        require(msg.sender == mapFromTokenIdToRightfulOwner[tokenId], "ERC721: Only the original/rightful owner can recall a loaned token.");
 
-    //     // Remove it from the array of loaned out tokens
-    //     delete tokenOwnersOnLoan[tokenId];
+        address borrowerAddress = ownerOf(tokenId);
 
-    //     // Subtract from the owner's loan balance
-    //     uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
-    //     totalLoanedPerAddress[msg.sender] = loansByAddress - 1;
-    //     currentLoanIndex = currentLoanIndex - 1;
+        // Remove it from the array of loaned out tokens
+        delete mapFromTokenIdToRightfulOwner[tokenId];
+
+        // Subtract from the owner's loan balance
+        uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
+        totalLoanedPerAddress[msg.sender] = loansByAddress - 1;
+
+        // Decrease the global counter
+        currentLoanCounter = currentLoanCounter - 1;
         
-    //     // Transfer the token back
-    //     _safeTransfer(borrowerAddress, msg.sender, tokenId);
+        // Transfer the token back
+        safeTransferFrom(borrowerAddress, msg.sender, tokenId);
 
-    //     emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
-    // }
+        emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
+    }
 
     // /**
     //  * Returns the total number of loaned angels
     //  */
     // function totalLoaned() public view returns (uint256) {
-    //     return currentLoanIndex;
+    //     return currentLoanCounter;
     // }
 
     // /**
@@ -133,7 +141,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
 
     //     uint256[] memory allTokenIds = new uint256[](totalTokensLoaned);
     //     for (uint256 i = 0; i < mintedSoFar && tokenIdsIdx != totalTokensLoaned; i++) {
-    //         if (tokenOwnersOnLoan[i] == owner) {
+    //         if (mapFromTokenIdToRightfulOwner[i] == owner) {
     //             allTokenIds[tokenIdsIdx] = i;
     //             tokenIdsIdx++;
     //         }
