@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.13;
 
+import "./URIManager.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts@4.6.0/security/Pausable.sol";
 import "@openzeppelin/contracts@4.6.0/access/AccessControl.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Burnable.sol";
 
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable {
+
+contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, URIManager {
     // create the hashes that identify various roles
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -35,7 +37,9 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
 
-    constructor() ERC721("AmWt01", "AMWT01") {
+    constructor(string memory name, string memory symbol, string memory baseTokenURI, string memory contractURI)
+    ERC721(name, symbol)
+    URIManager(baseTokenURI, contractURI) {
         // To start with we will only grant the DEFAULT_ADMIN_ROLE role to the msg.sender
         // The DEFAULT_ADMIN_ROLE is not granted any rights initially. The only privileges
         // the DEFAULT_ADMIN_ROLE has at contract deployment time are: the ability to grant other
@@ -86,9 +90,31 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     }
 
 
-    function _baseURI() internal pure override returns (string memory) {
-        return "http://amazons.s3.something/";
+    // Capabilities of the METADATA_UPDATER_ROLE
+
+    function setBaseURI(string calldata newURI) external onlyRole(METADATA_UPDATER_ROLE) allowIfNotFrozen {
+        _setBaseURI(newURI);
     }
+
+    function setContractURI(string calldata newContractURI) external onlyRole(METADATA_UPDATER_ROLE) allowIfNotFrozen {
+        _setContractURI(newContractURI);
+    }
+
+
+    // Information fetching - external/public
+
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI query for nonexistent token");
+
+        // return a concatenation of the baseURI (of the collection), with the tokenID, and the file extension.
+        return _buildTokenURI(tokenId);
+    }
+
+
+
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
@@ -99,6 +125,10 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     }
 
     // The following functions are overrides required by Solidity.
+
+    function _baseURI() internal view override returns (string memory) {
+        return _getBaseURI();
+    }
 
     function supportsInterface(bytes4 interfaceId)
         public
