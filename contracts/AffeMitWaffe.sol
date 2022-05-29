@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "./URIManager.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts@4.6.0/security/Pausable.sol";
 import "@openzeppelin/contracts@4.6.0/access/AccessControl.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Burnable.sol";
+import "./URIManager.sol";
+import "./ERC2981GlobalRoyalties.sol";
 
 
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, URIManager {
+contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, ERC2981GlobalRoyalties, URIManager {
     // create the hashes that identify various roles
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -90,6 +91,17 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     }
 
 
+    // Capabilities of the ROYALTY_SETTING_ROLE
+    
+    function setRoyaltyAmountInBips(uint16 newRoyaltyInBips) external onlyRole(ROYALTY_SETTING_ROLE) {
+        _setRoyaltyAmountInBips(newRoyaltyInBips);
+    }
+
+    function setRoyaltyDestination(address newRoyaltyDestination) external onlyRole(ROYALTY_SETTING_ROLE) {
+        _setRoyaltyDestination(newRoyaltyDestination);
+    }
+
+
     // Capabilities of the METADATA_UPDATER_ROLE
 
     function setBaseURI(string calldata newURI) external onlyRole(METADATA_UPDATER_ROLE) allowIfNotFrozen {
@@ -111,6 +123,15 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         return _buildTokenURI(tokenId);
     }
 
+    function royaltyInfo(uint256 tokenId, uint256 salePrice)
+        public
+        view
+        override
+        returns (address, uint256)
+    {
+        require(_exists(tokenId), "Royalty requested for non-existing token");
+        return _globalRoyaltyInfo(salePrice);
+    }
 
 
 
@@ -131,7 +152,7 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable, AccessControl)
+        override(ERC721, ERC721Enumerable, AccessControl, ERC2981GlobalRoyalties)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
