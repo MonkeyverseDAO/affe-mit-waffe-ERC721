@@ -31,7 +31,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      *   whether lendig is currently paused (or not), and 2) to hold the current state so that
      *   certain parts of the code can make decisons about the actions that are allowed (or not.)
      *   NOTE that when lending is paused, this restricts NEW loans from happening, but it does not
-     *   restrict owners from reclaiming their loans     --------------- OR FROM THE RECEPIENTS TO RETURN THE LOANS IF WE IMPLEMENT THIS?
+     *   restrict owners from reclaiming their loans, or from borrowers returning their borrowed tokens.
      */
     bool public loansAreCurrentlyPaused = false;
 
@@ -43,13 +43,19 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      */
     event Loan(address indexed from, address indexed to, uint item);
     /**
-     * @notice Emitted when a loan is recalled (EITHER WHEN THE OWNER RECALLS IT OR THE RECIPIENT SEND IT BACK DEPENDING ON IF WE IMPLEMENT-----------.
-     * @param from is the current owner of the token (which is not the original owner, but rather
-     *   the recipient of the loan.)
-     * @param to is the original owner of the token, and to whom it is being returned to.
+     * @notice Emitted when a loan is recalled by its rightful/original owner.
+     * @param byOriginalOwner is the original and rightful owner of the token.
+     * @param fromBorrower is the address the token was lent out to.
      * @param item is the tokenID representing the token that was lent.
      */
-    event LoanRetrieved(address indexed from, address indexed to, uint item);/**
+    event LoanRetrieved(address indexed byOriginalOwner, address indexed fromBorrower, uint item);
+    /**
+     * @notice Emitted when a loan is returned by the borrower.
+     * @param byBorrower is the address that token has been lent to.
+     * @param toOriginalOwner is the original and rightful owner of the token.
+     * @param item is the tokenID representing the token that was lent.
+     */
+    event LoanReturned(address indexed byBorrower, address indexed toOriginalOwner, uint item);
     /**
      * @notice Emitted when the pausing of loans is triggered.
      * @param account is the address that paused lending.
@@ -79,7 +85,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // Transfer the token
         safeTransferFrom(msg.sender, receiver, tokenId);
 
-        // Add it to the mapping of originally loaned tokens
+        // Add it to the mapping (of loaned tokens, and who their original/rightful owners are.)
         mapFromTokenIdToRightfulOwner[tokenId] = msg.sender;
 
         // Add to the owner's loan balance
@@ -98,7 +104,8 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      * @param tokenId is the integer ID of the token that should be retrieved.
      */
     function retrieveLoan(uint256 tokenId) external nonReentrant {
-        require(msg.sender == mapFromTokenIdToRightfulOwner[tokenId], "ERC721: Only the original/rightful owner can recall a loaned token.");
+        address rightfulOwner = mapFromTokenIdToRightfulOwner[tokenId];
+        require(msg.sender == rightfulOwner, "ERC721: Only the original/rightful owner can recall a loaned token.");
 
         address borrowerAddress = ownerOf(tokenId);
         bytes memory emptyTransferData;
@@ -106,44 +113,45 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // Remove it from the array of loaned out tokens
         delete mapFromTokenIdToRightfulOwner[tokenId];
 
-        // Subtract from the owner's loan balance
-        uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
-        totalLoanedPerAddress[msg.sender] = loansByAddress - 1;
+        // Subtract from the rightful owner's loan balance
+        uint256 loansByAddress = totalLoanedPerAddress[rightfulOwner];
+        totalLoanedPerAddress[rightfulOwner] = loansByAddress - 1;
 
         // Decrease the global counter
         currentLoanCounter = currentLoanCounter - 1;
         
         // Transfer the token back. (The empty transfer data is required by the compiler (i.e. it wont'
         // allow a call to _safeTransfer() with only 3 parameters).
-        _safeTransfer(borrowerAddress, msg.sender, tokenId, emptyTransferData);
+        _safeTransfer(borrowerAddress, rightfulOwner, tokenId, emptyTransferData);
 
-        emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
+        emit LoanRetrieved(rightfulOwner, borrowerAddress, tokenId);
     }
 
-    // /**
-    //  * @notice Allow the borrower to return the loaned token.
-    //  * @param tokenId is the integer ID of the token that should be retrieved.
-    //  */
-    // function retrieveLoan(uint256 tokenId) external nonReentrant {
-    //     require(msg.sender == mapFromTokenIdToRightfulOwner[tokenId], "ERC721: Only the original/rightful owner can recall a loaned token.");
+    /**
+     * @notice Allow the borrower to return the loaned token.
+     * @param tokenId is the integer ID of the token that should be retrieved.
+     */
+    function returnLoanByBorrower(uint256 tokenId) external nonReentrant {
+        address borrowerAddress = ownerOf(tokenId);
+        require(msg.sender == borrowerAddress, "ERC721: Only the borrower can return the token.");
 
-    //     address borrowerAddress = ownerOf(tokenId);
+        address rightfulOwner = mapFromTokenIdToRightfulOwner[tokenId];
 
-    //     // Remove it from the array of loaned out tokens
-    //     delete mapFromTokenIdToRightfulOwner[tokenId];
+        // Remove it from the array of loaned out tokens
+        delete mapFromTokenIdToRightfulOwner[tokenId];
 
-    //     // Subtract from the owner's loan balance
-    //     uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
-    //     totalLoanedPerAddress[msg.sender] = loansByAddress - 1;
+        // Subtract from the rightful owner's loan balance
+        uint256 loansByAddress = totalLoanedPerAddress[rightfulOwner];
+        totalLoanedPerAddress[rightfulOwner] = loansByAddress - 1;
 
-    //     // Decrease the global counter
-    //     currentLoanCounter = currentLoanCounter - 1;
+        // Decrease the global counter
+        currentLoanCounter = currentLoanCounter - 1;
         
-    //     // Transfer the token back
-    //     safeTransferFrom(borrowerAddress, msg.sender, tokenId);
+        // Transfer the token back
+        safeTransferFrom(borrowerAddress, rightfulOwner, tokenId);
 
-    //     emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
-    // }
+        emit LoanReturned(borrowerAddress, rightfulOwner, tokenId);
+    }
 
     // /**
     //  * Returns the total number of loaned angels
