@@ -92,12 +92,16 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
 
     /**
      * @notice Allow the rightful owner of a token to retrieve it, if it is currently on loan.
+     * @dev Notice that (in contrast to the loan() function), this function has to use the _safeTransfer
+     *   function (as opposed to safeTransferFrom()), in order to bypass the check that the address
+     *   requesting the transfer is the current owner (as far as the 721 contract is concerned.)
      * @param tokenId is the integer ID of the token that should be retrieved.
      */
     function retrieveLoan(uint256 tokenId) external nonReentrant {
         require(msg.sender == mapFromTokenIdToRightfulOwner[tokenId], "ERC721: Only the original/rightful owner can recall a loaned token.");
 
         address borrowerAddress = ownerOf(tokenId);
+        bytes memory emptyTransferData;
 
         // Remove it from the array of loaned out tokens
         delete mapFromTokenIdToRightfulOwner[tokenId];
@@ -109,11 +113,37 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // Decrease the global counter
         currentLoanCounter = currentLoanCounter - 1;
         
-        // Transfer the token back
-        safeTransferFrom(borrowerAddress, msg.sender, tokenId);
+        // Transfer the token back. (The empty transfer data is required by the compiler (i.e. it wont'
+        // allow a call to _safeTransfer() with only 3 parameters).
+        _safeTransfer(borrowerAddress, msg.sender, tokenId, emptyTransferData);
 
         emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
     }
+
+    // /**
+    //  * @notice Allow the borrower to return the loaned token.
+    //  * @param tokenId is the integer ID of the token that should be retrieved.
+    //  */
+    // function retrieveLoan(uint256 tokenId) external nonReentrant {
+    //     require(msg.sender == mapFromTokenIdToRightfulOwner[tokenId], "ERC721: Only the original/rightful owner can recall a loaned token.");
+
+    //     address borrowerAddress = ownerOf(tokenId);
+
+    //     // Remove it from the array of loaned out tokens
+    //     delete mapFromTokenIdToRightfulOwner[tokenId];
+
+    //     // Subtract from the owner's loan balance
+    //     uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
+    //     totalLoanedPerAddress[msg.sender] = loansByAddress - 1;
+
+    //     // Decrease the global counter
+    //     currentLoanCounter = currentLoanCounter - 1;
+        
+    //     // Transfer the token back
+    //     safeTransferFrom(borrowerAddress, msg.sender, tokenId);
+
+    //     emit LoanRetrieved(borrowerAddress, msg.sender, tokenId);
+    // }
 
     // /**
     //  * Returns the total number of loaned angels
