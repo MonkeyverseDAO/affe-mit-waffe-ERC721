@@ -8,6 +8,7 @@ import "@openzeppelin/contracts@4.6.0/access/AccessControl.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Burnable.sol";
 import "./URIManager.sol";
 import "./ERC2981GlobalRoyalties.sol";
+import "./ERC721Lending.sol";
 
 /**
  * @title Affe mit Waffe NFT smart contract.
@@ -15,7 +16,8 @@ import "./ERC2981GlobalRoyalties.sol";
  *   gratitude to the collaborative spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
  *   provided their code for other projects to learn from and use.
  */
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, ERC2981GlobalRoyalties, URIManager {
+contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
+                   ERC721Burnable, ERC2981GlobalRoyalties, URIManager, ERC721Lending {
     // create the hashes that identify various roles
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -115,6 +117,15 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         _unpause();
     }
 
+    // TO DO
+    /**
+     * To be updated by contract owner to allow for the loan functionality to be toggled
+     */
+    // function setLoansPaused(bool _loansPaused) public onlyOwner {
+    //     require(loansPaused != _loansPaused, "NEW_STATE_IDENTICAL_TO_OLD_STATE");
+    //     loansPaused = _loansPaused;
+    // }
+
 
     // Capabilities of the MINTER_ROLE
 
@@ -175,6 +186,18 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         return _globalRoyaltyInfo(salePrice);
     }
 
+    // TO DO
+    /**
+     * Returns all the token ids owned by a given address
+     */
+    // function ownedTokensByAddress(address owner) external view returns (uint256[] memory) {
+    //     uint256 totalTokensOwned = balanceOf(owner);
+    //     uint256[] memory allTokenIds = new uint256[](totalTokensOwned);
+    //     for (uint256 i = 0; i < totalTokensOwned; i++) {
+    //         allTokenIds[i] = (tokenOfOwnerByIndex(owner, i));
+    //     }
+    //     return allTokenIds;
+    // }
 
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
