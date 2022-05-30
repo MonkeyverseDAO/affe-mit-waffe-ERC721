@@ -209,24 +209,28 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         return _globalRoyaltyInfo(salePrice);
     }
 
-    // TO DO
     /**
-     * Returns all the token ids owned by a given address
+     * @notice Returns all the token IDs owned by a given address. NOTE that 'owner',
+     *   in this context, is the meaning as stipulated in EIP-721, which is the address
+     *   returned by the ownerOf function. Therefore this function will enumerate the
+     *   borrower as the current owner of a token on loan, rather than the original owner.
+     * @param tokenOwner is the address to request ownership information about.
+     * @return an array that has all the tokenIds owned by an address.
      */
-    // function ownedTokensByAddress(address owner) external view returns (uint256[] memory) {
-    //     uint256 totalTokensOwned = balanceOf(owner);
-    //     uint256[] memory allTokenIds = new uint256[](totalTokensOwned);
-    //     for (uint256 i = 0; i < totalTokensOwned; i++) {
-    //         allTokenIds[i] = (tokenOfOwnerByIndex(owner, i));
-    //     }
-    //     return allTokenIds;
-    // }
+    function ownedTokensByAddress(address tokenOwner) external view returns (uint256[] memory) {
+        uint256 totalTokensOwned = balanceOf(tokenOwner);
+        uint256[] memory allTokenIdsOfOwner = new uint256[](totalTokensOwned);
+        for (uint256 i = 0; i < totalTokensOwned; i++) {
+            allTokenIdsOfOwner[i] = (tokenOfOwnerByIndex(tokenOwner, i));
+        }
+        return allTokenIdsOfOwner;
+    }
 
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
         whenNotPaused
-        override(ERC721, ERC721Enumerable)
+        override(ERC721, ERC721Enumerable, ERC721Lending)
     {
         super._beforeTokenTransfer(from, to, tokenId);
     }

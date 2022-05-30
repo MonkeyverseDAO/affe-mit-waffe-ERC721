@@ -7,24 +7,35 @@ import "@openzeppelin/contracts@4.6.0/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.6.0/security/ReentrancyGuard.sol";
 
 /**
- * @notice Implementation of ERC-721 NFT lending. The code is based off of the Meta Angels NFT
- *   code (thank you to that team for making their code available for other projects to learn
- *   from!) The code has been modified in several ways, most importantly that in the original
- *   smart contract it was included in the main contract, whereas here we have abstracted the
+ * @notice Implementation of ERC-721 NFT lending. The code below was written by using, as a
+ *   starting point, the code made available by the Meta Angels NFT team (thank you to that team
+ *   for making their code available for other projects to use!)
+ *   The code has been modified in several ways, most importantly that in the original
+ *   implementation it was included in the main contract, whereas here we have abstracted the
  *   functionality into its own parent contract. Also, some additional events have been added,
- *   and checking whether loans are paused has been moved to a Modifier.
+ *   and checking whether loans are paused has been moved to a Modifier. In addition a function
+ *   has been added to allow a borrower to initiate the return of a loan.
+ *   Note that when lending, the meaning of terms like 'owner' become ambiguous, particularly
+ *   because once a token is lent, as far as the ERC721 standard is concerned, the borrower is
+ *   technically the owner. (In other words, the function 'ownerOf()' reqired by EIP-721 will
+ *   return the address of the borrower while a token is lent. In the comments and variable names
+ *   below we have tried to disambiguate by refering wherever possible to the original/rightful
+ *   owner as the address that truly owns the NFT (the address that is able to recall the loan
+ *   whenever they want.) However it is important to understand that once a token is loaned, to
+ *   the outside world it will appear to be 'owned' by the borrower. From that perspective, the
+ *   'owner' is the current borrower.
  */
 abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     using Strings for uint256;
 
     mapping (address => uint256) public totalLoanedPerAddress;
     /**
-    * @notice The mapping below keeps track of the original owner of each token, in other words,
+    * @notice The mapping below keeps track of the original/rightful owner of each token, in other words,
     *   the address that truly owns the token (and has simply lent it out.) This is the address
     *   that is allowed to retrieve the token (to end the loan.)
     */
     mapping (uint256 => address) public mapFromTokenIdToRightfulOwner;
-    uint256 private currentLoanCounter = 0;
+    uint256 private counterGlobalLoans = 0;
 
     /**
      * @notice A variable that servers two purposes. 1) To allow the 'outside world' to easily query
@@ -91,24 +102,25 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // Add to the owner's loan balance
         uint256 loansByAddress = totalLoanedPerAddress[msg.sender];
         totalLoanedPerAddress[msg.sender] = loansByAddress + 1;
-        currentLoanCounter = currentLoanCounter + 1;
+        counterGlobalLoans = counterGlobalLoans + 1;
 
         emit Loan(msg.sender, receiver, tokenId);
     }
 
     /**
-     * @notice Allow the rightful owner of a token to retrieve it, if it is currently on loan.
-     * @dev Notice that (in contrast to the loan() function), this function has to use the _safeTransfer
-     *   function (as opposed to safeTransferFrom()), in order to bypass the check that the address
-     *   requesting the transfer is the current owner (as far as the 721 contract is concerned.)
+     * @notice Allow the rightful owner of a token to reclaim it, if it is currently on loan.
+     * @dev Notice that (in contrast to the loan() function), this function has to use the _safeTransfer()
+     *   function as opposed to safeTransferFrom(). The difference between these functions is that
+     *   safeTransferFrom requires taht msg.sender _isApprovedOrOwner, whereas _sefTransfer() does not. In
+     *   this case, the current owner as far as teh ERC721 contract is concerned is the borrower, so
+     *   safeTransferFrom() cannot be used.
      * @param tokenId is the integer ID of the token that should be retrieved.
      */
-    function retrieveLoan(uint256 tokenId) external nonReentrant {
+    function reclaimLoan(uint256 tokenId) external nonReentrant {
         address rightfulOwner = mapFromTokenIdToRightfulOwner[tokenId];
-        require(msg.sender == rightfulOwner, "ERC721: Only the original/rightful owner can recall a loaned token.");
+        require(msg.sender == rightfulOwner, "ERC721Lending: Only the original/rightful owner can recall a loaned token.");
 
         address borrowerAddress = ownerOf(tokenId);
-        bytes memory emptyTransferData;
 
         // Remove it from the array of loaned out tokens
         delete mapFromTokenIdToRightfulOwner[tokenId];
@@ -118,11 +130,11 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         totalLoanedPerAddress[rightfulOwner] = loansByAddress - 1;
 
         // Decrease the global counter
-        currentLoanCounter = currentLoanCounter - 1;
+        counterGlobalLoans = counterGlobalLoans - 1;
         
-        // Transfer the token back. (The empty transfer data is required by the compiler (i.e. it wont'
-        // allow a call to _safeTransfer() with only 3 parameters).
-        _safeTransfer(borrowerAddress, rightfulOwner, tokenId, emptyTransferData);
+        // Transfer the token back. (_safeTransfer() requires four parameters, so it is necessary to
+        // pass an empty string as the 'data'.)
+        _safeTransfer(borrowerAddress, rightfulOwner, tokenId, "");
 
         emit LoanRetrieved(rightfulOwner, borrowerAddress, tokenId);
     }
@@ -133,7 +145,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      */
     function returnLoanByBorrower(uint256 tokenId) external nonReentrant {
         address borrowerAddress = ownerOf(tokenId);
-        require(msg.sender == borrowerAddress, "ERC721: Only the borrower can return the token.");
+        require(msg.sender == borrowerAddress, "ERC721Lending: Only the borrower can return the token.");
 
         address rightfulOwner = mapFromTokenIdToRightfulOwner[tokenId];
 
@@ -145,7 +157,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         totalLoanedPerAddress[rightfulOwner] = loansByAddress - 1;
 
         // Decrease the global counter
-        currentLoanCounter = currentLoanCounter - 1;
+        counterGlobalLoans = counterGlobalLoans - 1;
         
         // Transfer the token back
         safeTransferFrom(borrowerAddress, rightfulOwner, tokenId);
@@ -153,40 +165,50 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         emit LoanReturned(borrowerAddress, rightfulOwner, tokenId);
     }
 
-    // /**
-    //  * Returns the total number of loaned angels
-    //  */
-    // function totalLoaned() public view returns (uint256) {
-    //     return currentLoanCounter;
-    // }
+    /**
+     * @notice Queries the number of tokens that are currently on loan.
+     * @return The total number of tokens presently loaned.
+     */
+    function totalLoaned() public view returns (uint256) {
+        return counterGlobalLoans;
+    }
 
-    // /**
-    //  * Returns the loaned balance of an address
-    //  */
-    // function loanedBalanceOf(address owner) public view returns (uint256) {
-    //     require(owner != address(0), "Balance query for the zero address");
-    //     return totalLoanedPerAddress[owner];
-    // }
+    /**
+     * @notice Function retrieves the number of tokens that an address currently has on loan.
+     * @param rightfulOwner is the original/rightful owner of a token or set of tokens.
+     * @return The total number of tokens presently loaned by a specific original owner.
+     */
+    function loanedBalanceOf(address rightfulOwner) public view returns (uint256) {
+        require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
+        return totalLoanedPerAddress[rightfulOwner];
+    }
 
-    // /**
-    //  * Returns all the token ids owned by a given address
-    //  */
-    // function loanedTokensByAddress(address owner) external view returns (uint256[] memory) {
-    //     require(owner != address(0), "Balance query for the zero address");
-    //     uint256 totalTokensLoaned = loanedBalanceOf(owner);
-    //     uint256 mintedSoFar = totalSupply();
-    //     uint256 tokenIdsIdx = 0;
+    /**
+     * @notice Function retrieves the specific token ids on loan by a given address.
+     * @param rightfulOwner is the original/rightful owner for whom one wishes to find the
+     *   tokenIds on loan.
+     * @return an array with the tokenIds currently on loan by the origina/rightful owner.
+     */
+    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
+        require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
+        uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
 
-    //     uint256[] memory allTokenIds = new uint256[](totalTokensLoaned);
-    //     for (uint256 i = 0; i < mintedSoFar && tokenIdsIdx != totalTokensLoaned; i++) {
-    //         if (mapFromTokenIdToRightfulOwner[i] == owner) {
-    //             allTokenIds[tokenIdsIdx] = i;
-    //             tokenIdsIdx++;
-    //         }
-    //     }
-
-    //     return allTokenIds;
-    // }
+        uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
+        // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
+        if (numTokensLoanedByRightfulOwner > 0) {
+            uint256 numMatchingTokensFound = 0;
+            // Continue searching in the loop until all of the entries in the mapFromTokenIdToRightfulOwner
+            // have been checked, or until the length of the array where lent tokenIds are being stored
+            // matches the expected loan balance of the rightful owner.
+            for (uint256 i = 0; i < counterGlobalLoans && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
+                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
+                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
+                    numMatchingTokensFound++;
+                }
+            }
+        }
+        return theTokenIDsOfRightfulOwner;
+    }
 
     /**
      * @notice Function to pause lending.
@@ -209,11 +231,25 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     }
 
     /**
+     * @notice This hook is arguably the most important part of this contract. It is the piece
+     *   of code that ensures a borrower cannot transfer the token.
+     * @dev Hook that is called before any token transfer. This includes minting
+     *   and burning.
+     */
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+        internal
+        virtual
+        override(ERC721)
+    {
+        super._beforeTokenTransfer(from, to, tokenId);
+        require(mapFromTokenIdToRightfulOwner[tokenId] == address(0), "ERC721Lending: Cannot transfer token on loan.");
+    }
+
+    /**
      * @dev Modifier to make a function callable only if lending is not paused.
      */
     modifier allowIfLendingNotPaused() {
         require(!loansAreCurrentlyPaused, "ERC721Lending: Lending of tokens is currently paused.");
         _;
     }
-
 }
