@@ -8,6 +8,7 @@ import "@openzeppelin/contracts@4.6.0/access/AccessControl.sol";
 import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721Burnable.sol";
 import "./URIManager.sol";
 import "./ERC2981GlobalRoyalties.sol";
+import "./ERC721Lending.sol";
 
 /**
  * @title Affe mit Waffe NFT smart contract.
@@ -15,13 +16,19 @@ import "./ERC2981GlobalRoyalties.sol";
  *   gratitude to the collaborative spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
  *   provided their code for other projects to learn from and use.
  */
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burnable, ERC2981GlobalRoyalties, URIManager {
-    // create the hashes that identify various roles
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant ROYALTY_SETTING_ROLE = keccak256("ROYALTY_SETTING_ROLE");
-    bytes32 public constant METADATA_UPDATER_ROLE = keccak256("METADATA_UPDATER_ROLE");
-    bytes32 public constant METADATA_FREEZER_ROLE = keccak256("METADATA_FREEZER_ROLE");
+contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
+                   ERC721Burnable, ERC2981GlobalRoyalties, URIManager, ERC721Lending {
+    // Create the hashes that identify various roles. Note that the naming below diverges
+    // from the naming of the DEFAULT_ADMIN_ROLE, whereby OpenZeppelin chose to put
+    // the 'ROLE' part of the variable name at the end. Here, instead, all other roles are  named
+    // with 'ROLE' at the beginning of the name, because this makes them much easier to
+    // find and identify (they naturally get grouped together) in graphical tools like Remix
+    // or Etherscan.
+    bytes32 public constant ROLE_PAUSER = keccak256("ROLE_PAUSER");
+    bytes32 public constant ROLE_MINTER = keccak256("ROLE_MINTER");
+    bytes32 public constant ROLE_ROYALTY_SETTING = keccak256("ROLE_ROYALTY_SETTING");
+    bytes32 public constant ROLE_METADATA_UPDATER = keccak256("ROLE_METADATA_UPDATER");
+    bytes32 public constant ROLE_METADATA_FREEZER = keccak256("ROLE_METADATA_FREEZER");
 
     /**
      * @notice The owner variable below is 'honorary' in the sense that it serves no purpose
@@ -97,60 +104,87 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
     }
 
 
-    // Capabilities of the PAUSER_ROLE
+    // Capabilities of ROLE_PAUSER
 
-    // create a function which can be called externally by an acount with the
-    // PAUSER_ROLE. This function, calls the internal _pause() function
-    // inherited from Pausable contract, and its purpose is to pause all transfers
-    // of tokens in the contract (which includes minting/burning/transferring)
-    function pause() external onlyRole(PAUSER_ROLE) {
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   ROLE_PAUSER, with the purpose of (in the case of an emergency) pausing all transfers
+     *   of tokens in the contract (which includes minting/burning/transferring.)
+     * @dev This function calls the internal _pause() function from
+     *   OpenZeppelin's Pausable contract.
+     */
+    function pause() external onlyRole(ROLE_PAUSER) {
         _pause();
     }
 
-    // create a function which can be called externally by an acount with the
-    // PAUSER_ROLE. This function, calls the internal _uppause() function
-    // inherited from Pausable contract, and its purpose is to *un*pause all transfers
-    // of tokens in the contract (which includes minting/burning/transferring)
-    function unpause() external onlyRole(PAUSER_ROLE) {
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   ROLE_PAUSER, with the purpose of UNpausing all transfers
+     *   of tokens in the contract (which includes minting/burning/transferring.)
+     * @dev This function calls the internal _unpause() function from
+     *   OpenZeppelin's Pausable contract.
+     */
+    function unpause() external onlyRole(ROLE_PAUSER) {
         _unpause();
     }
 
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   ROLE_PAUSER, with the purpose of pausing all token lending. When loans
+     *   are paused, new loans cannot be made, but existing loans can be recalled.
+     * @dev This function calls the internal _pauseLending() function of the
+     *   ERC721Lending contract.
+     */
+    function pauseLending() external onlyRole(ROLE_PAUSER) {
+        _pauseLending();
+    }
 
-    // Capabilities of the MINTER_ROLE
+    /**
+     * @notice A function which can be called externally by an acount with the
+     *   ROLE_PAUSER, with the purpose of UNpausing all token lending.
+     * @dev This function calls the internal _unpauseLending() function of the
+     *   ERC721Lending contract.
+     */
+    function unpauseLending() external onlyRole(ROLE_PAUSER) {
+        _unpauseLending();
+    }
+
+
+    // Capabilities of ROLE_MINTER
 
     // the main minting function
-    function safeMint(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
+    function safeMint(address to, uint256 tokenId) external onlyRole(ROLE_MINTER) {
         require(numTokensMinted < MAX_SUPPLY, "The maximum number of tokens that can ever be minted has been reached.");
         numTokensMinted += 1;
         _safeMint(to, tokenId);
     }
 
 
-    // Capabilities of the ROYALTY_SETTING_ROLE
+    // Capabilities of ROLE_ROYALTY_SETTING
     
-    function setRoyaltyAmountInBips(uint16 newRoyaltyInBips) external onlyRole(ROYALTY_SETTING_ROLE) {
+    function setRoyaltyAmountInBips(uint16 newRoyaltyInBips) external onlyRole(ROLE_ROYALTY_SETTING) {
         _setRoyaltyAmountInBips(newRoyaltyInBips);
     }
 
-    function setRoyaltyDestination(address newRoyaltyDestination) external onlyRole(ROYALTY_SETTING_ROLE) {
+    function setRoyaltyDestination(address newRoyaltyDestination) external onlyRole(ROLE_ROYALTY_SETTING) {
         _setRoyaltyDestination(newRoyaltyDestination);
     }
 
 
-    // Capabilities of the METADATA_UPDATER_ROLE
+    // Capabilities of ROLE_METADATA_UPDATER
 
-    function setBaseURI(string calldata newURI) external onlyRole(METADATA_UPDATER_ROLE) allowIfNotFrozen {
+    function setBaseURI(string calldata newURI) external onlyRole(ROLE_METADATA_UPDATER) allowIfNotFrozen {
         _setBaseURI(newURI);
     }
 
-    function setContractURI(string calldata newContractURI) external onlyRole(METADATA_UPDATER_ROLE) allowIfNotFrozen {
+    function setContractURI(string calldata newContractURI) external onlyRole(ROLE_METADATA_UPDATER) allowIfNotFrozen {
         _setContractURI(newContractURI);
     }
 
     
-    // Capabilities of the METADATA_FREEZER_ROLE
+    // Capabilities of ROLE_METADATA_FREEZER
 
-    function freezeURIsForever() external onlyRole(METADATA_FREEZER_ROLE) allowIfNotFrozen {
+    function freezeURIsForever() external onlyRole(ROLE_METADATA_FREEZER) allowIfNotFrozen {
         _freezeURIsForever();
     }
 
@@ -175,12 +209,56 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl, ERC721Burn
         return _globalRoyaltyInfo(salePrice);
     }
 
+    /**
+     * @notice Returns all the token IDs owned by a given address. NOTE that 'owner',
+     *   in this context, is the meaning as stipulated in EIP-721, which is the address
+     *   returned by the ownerOf function. Therefore this function will enumerate the
+     *   borrower as the current owner of a token on loan, rather than the original owner.
+     * @param tokenOwner is the address to request ownership information about.
+     * @return an array that has all the tokenIds owned by an address.
+     */
+    function ownedTokensByAddress(address tokenOwner) external view returns (uint256[] memory) {
+        uint256 totalTokensOwned = balanceOf(tokenOwner);
+        uint256[] memory allTokenIdsOfOwner = new uint256[](totalTokensOwned);
+        for (uint256 i = 0; i < totalTokensOwned; i++) {
+            allTokenIdsOfOwner[i] = (tokenOfOwnerByIndex(tokenOwner, i));
+        }
+        return allTokenIdsOfOwner;
+    }
 
+    /**
+     * @notice Function retrieves the specific token ids on loan by a given address.
+     * @param rightfulOwner is the original/rightful owner for whom one wishes to find the
+     *   tokenIds on loan.
+     * @return an array with the tokenIds currently on loan by the origina/rightful owner.
+     */
+    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
+        require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
+        uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
+        uint256 numGlobalTotalTokens = totalSupply();
+
+        uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
+        // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
+        if (numTokensLoanedByRightfulOwner > 0) {
+            uint256 numMatchingTokensFound = 0;
+            // Continue searching in the loop until ...
+            for (uint256 i = 0; i < numGlobalTotalTokens && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
+                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
+                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
+                    numMatchingTokensFound++;
+                }
+            }
+        }
+        return theTokenIDsOfRightfulOwner;
+    }
+
+
+    // Hook overrides
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
         whenNotPaused
-        override(ERC721, ERC721Enumerable)
+        override(ERC721, ERC721Enumerable, ERC721Lending)
     {
         super._beforeTokenTransfer(from, to, tokenId);
     }
