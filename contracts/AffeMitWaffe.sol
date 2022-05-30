@@ -226,6 +226,38 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         return allTokenIdsOfOwner;
     }
 
+    /**
+     * @notice Function retrieves the specific token ids on loan by a given address.
+     * @dev This function must make a call to totalSupply(), which is implemented in ERC721Enumerable,
+     *   which this is the only reason this abstract contract needs to inherit ERC721Enumberable.
+     *   Therefore, if this function is not needed and is removed from this contract, there should not
+     *   be a need for this contract to inherit from ERC721Enumerable.
+     * @param rightfulOwner is the original/rightful owner for whom one wishes to find the
+     *   tokenIds on loan.
+     * @return an array with the tokenIds currently on loan by the origina/rightful owner.
+     */
+    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
+        require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
+        uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
+        uint256 numGlobalTotalTokens = totalSupply();
+
+        uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
+        // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
+        if (numTokensLoanedByRightfulOwner > 0) {
+            uint256 numMatchingTokensFound = 0;
+            // Continue searching in the loop until ...
+            for (uint256 i = 0; i < numGlobalTotalTokens && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
+                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
+                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
+                    numMatchingTokensFound++;
+                }
+            }
+        }
+        return theTokenIDsOfRightfulOwner;
+    }
+
+
+    // Hook overrides
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal

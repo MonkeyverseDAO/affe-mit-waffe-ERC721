@@ -35,7 +35,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     *   that is allowed to retrieve the token (to end the loan.)
     */
     mapping (uint256 => address) public mapFromTokenIdToRightfulOwner;
-    uint256 private counterGlobalLoans = 0;
+    uint256 internal counterGlobalLoans = 0;
 
     /**
      * @notice A variable that servers two purposes. 1) To allow the 'outside world' to easily query
@@ -184,33 +184,6 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     }
 
     /**
-     * @notice Function retrieves the specific token ids on loan by a given address.
-     * @param rightfulOwner is the original/rightful owner for whom one wishes to find the
-     *   tokenIds on loan.
-     * @return an array with the tokenIds currently on loan by the origina/rightful owner.
-     */
-    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
-        require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
-        uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
-
-        uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
-        // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
-        if (numTokensLoanedByRightfulOwner > 0) {
-            uint256 numMatchingTokensFound = 0;
-            // Continue searching in the loop until all of the entries in the mapFromTokenIdToRightfulOwner
-            // have been checked, or until the length of the array where lent tokenIds are being stored
-            // matches the expected loan balance of the rightful owner.
-            for (uint256 i = 0; i < counterGlobalLoans && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
-                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
-                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
-                    numMatchingTokensFound++;
-                }
-            }
-        }
-        return theTokenIDsOfRightfulOwner;
-    }
-
-    /**
      * @notice Function to pause lending.
      * @dev The function is internal, so it should be called by child contracts, which allows
      *   them to implement their own restrictions, such as Access Control.
@@ -252,4 +225,5 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         require(!loansAreCurrentlyPaused, "ERC721Lending: Lending of tokens is currently paused.");
         _;
     }
+
 }
