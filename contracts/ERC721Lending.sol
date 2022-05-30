@@ -24,6 +24,14 @@ import "@openzeppelin/contracts@4.6.0/security/ReentrancyGuard.sol";
  *   whenever they want.) However it is important to understand that once a token is loaned, to
  *   the outside world it will appear to be 'owned' by the borrower. From that perspective, the
  *   'owner' is the current borrower.
+ * @dev if you would like to use this code and add a function that enumerates the tokens
+ *   loaned out by a particular address (eg. it could be a function called
+ *   loanedTokensByAddress(address rightfulOwner) ), you'll need to modify this contract so it
+ *   inherits from ERC721Enumerable (because such a function will need access to the
+ *   'totalSupply()' provided by the Enumerable contract. For the sake of simplicity, this
+ *   contract does not currently implement a function that generates the enumeration of loaned
+ *   tokens. However, note that a child contract can readily implement such a function, if it
+ *   inherits from ERC721Enumerable.
  */
 abstract contract ERC721Lending is ERC721, ReentrancyGuard {
     using Strings for uint256;

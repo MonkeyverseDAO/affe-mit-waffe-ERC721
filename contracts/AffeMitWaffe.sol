@@ -228,10 +228,6 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
 
     /**
      * @notice Function retrieves the specific token ids on loan by a given address.
-     * @dev This function must make a call to totalSupply(), which is implemented in ERC721Enumerable,
-     *   which this is the only reason this abstract contract needs to inherit ERC721Enumberable.
-     *   Therefore, if this function is not needed and is removed from this contract, there should not
-     *   be a need for this contract to inherit from ERC721Enumerable.
      * @param rightfulOwner is the original/rightful owner for whom one wishes to find the
      *   tokenIds on loan.
      * @return an array with the tokenIds currently on loan by the origina/rightful owner.
