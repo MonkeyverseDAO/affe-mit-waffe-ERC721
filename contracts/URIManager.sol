@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts@4.6.0/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @dev Contract module which abstracts some aspects of URI management away from the main contract.
