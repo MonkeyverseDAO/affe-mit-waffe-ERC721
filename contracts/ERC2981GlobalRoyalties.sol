@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "@openzeppelin/contracts@4.6.0/interfaces/IERC2981.sol";
-import "@openzeppelin/contracts@4.6.0/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
  * @title Implementation ERC2981 Ethereum NFT Royalty Standard
