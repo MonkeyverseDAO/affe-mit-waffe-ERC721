@@ -8,9 +8,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 16
-      - run: npm install
-      - run: npx hardhat test
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # - name: Setup Node
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: 16
+      
+      # - name: npm Install
+      #   run: npm install
+      
+      - name: Create env File
+        run: |
+          touch .env
+          echo CONTRACT_NAME="AffeMitWaffe" >> .env
+          echo CONTRACT_SYMBOL="AMW" >> .env
+          echo INITIAL_BASE_TOKEN_URI="https://something.aws.s3.com/json/" >> .env
+          echo INITIAL_CONTRACT_URI="https://something.aws.s3.com/json/collection.json" >> .env
+          ls -lah
+          more .env
+
+      # - name: Run Hardhat Tests
+      #   run: npx hardhat test
