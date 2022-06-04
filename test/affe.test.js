@@ -17,6 +17,7 @@ const expectedTokenSymbol = CONTRACT_SYMBOL;
 const expectedBaseTokenURI = INITIAL_BASE_TOKEN_URI;
 const expectedContractURI = INITIAL_CONTRACT_URI;
 
+
 // Define an object to store information about roles
 const role = {
     admin:{string:"DEFAULT_ADMIN_ROLE"},
@@ -896,7 +897,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
                 grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
         });
 
-        it('should not not allow minting more than the max supply', async () => {
+        it('should not allow minting more than the max supply', async () => {
             const maxSupply = 250;
             const batchLength = 100;
             let transactions = [];

@@ -3,6 +3,10 @@
 */
 
 require("@nomiclabs/hardhat-ethers");
+require("hardhat-gas-reporter");
+require('solidity-coverage')
+require('dotenv').config();
+const { COINMARKETCAP_API_KEY } = process.env;
 
 module.exports = {
    solidity: {
@@ -19,4 +23,8 @@ module.exports = {
        chainId: 1337,
     },
   },
+  gasReporter: {
+    currency: 'USD',
+    coinmarketcap: COINMARKETCAP_API_KEY
+  }
  };
