@@ -13,6 +13,4 @@ jobs:
         with:
           node-version: 16
       - run: npm install
-        working-directory: dapps/rv-nft-procrypto-earlyadopters/
       - run: npx hardhat test
-        working-directory: dapps/rv-nft-procrypto-earlyadopters/
