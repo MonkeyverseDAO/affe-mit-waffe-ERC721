@@ -22,12 +22,14 @@ jobs:
       - name: Create env File
         run: |
           touch .env
+          echo COINMARKETCAP_API_KEY='${{ secrets.COINMARKETCAP_API_KEY }}' >> .env
           echo CONTRACT_NAME="AffeMitWaffe" >> .env
           echo CONTRACT_SYMBOL="AMW" >> .env
           echo INITIAL_BASE_TOKEN_URI="https://something.aws.s3.com/json/" >> .env
           echo INITIAL_CONTRACT_URI="https://something.aws.s3.com/json/collection.json" >> .env
-          ls -lah
-          more .env
 
       - name: Run Hardhat Tests
         run: npx hardhat test
+
+      - name: Check Coverage
+        run: npx hardhat coverage
