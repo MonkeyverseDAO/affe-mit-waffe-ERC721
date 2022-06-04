@@ -172,24 +172,28 @@ describe('Affe mit Waffe Unit Testing',  () => {
         });
 
         it('should allow an address with ROLE_MINTER to mint a token', async () => {
+            let mintReceiverAddress = await this.accounts[account.accNoRoles1.idx].address;
             tokenId++;
             // Connect to the contract as the minter
             const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx])
             // Mint a token, sending it to an address that has no roles
-            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+            await expect(contractAsMinter.safeMint(mintReceiverAddress, tokenId)).to.emit(this.contract, 'Transfer')
+                .withArgs(nullAddress, mintReceiverAddress, tokenId);
             // Expect the contract to correctly reply with the correct newly minted owner
-            // of the tokenId
-            await expect(await this.contract.ownerOf(tokenId)).to.equal(this.accounts[account.accNoRoles1.idx].address);
+            // of the tokenId and their balance
+            await expect(await this.contract.ownerOf(tokenId)).to.equal(mintReceiverAddress);
+            await expect(await this.contract.balanceOf(mintReceiverAddress)).to.equal(1);
         });
 
         it('should not allow duplicate minting (of the same tokenId twice)', async () => {
+            let mintReceiverAddress = await this.accounts[account.accNoRoles1.idx].address;
             tokenId++;
             // Connect to the contract as the minter
             const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx])
             // Mint a token, sending it to an address that has no roles
-            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+            await contractAsMinter.safeMint(mintReceiverAddress, tokenId);
             // Try to mint the same token (with the same Id) again
-            await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId))
+            await expect(contractAsMinter.safeMint(mintReceiverAddress, tokenId))
                   .to.be.revertedWith('ERC721: token already minted');
           });
 
@@ -199,8 +203,8 @@ describe('Affe mit Waffe Unit Testing',  () => {
             const contractNoRole = await this.contract.connect(this.accounts[account.accNoRoles1.idx])
             // Try to mint a token, with a valid tokenId (not ever minted before), but connected to
             // the contract using an account that hasn't been granted the minting role.
-            await expect(contractNoRole.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId))
-                    .to.be.revertedWith(accessControlRevertString(this.accounts[account.accNoRoles1.idx].address, role.minter.hex));
+            await expect(contractNoRole.safeMint(this.accounts[account.accNoRoles2.idx].address, tokenId))
+                .to.be.revertedWith(accessControlRevertString(this.accounts[account.accNoRoles1.idx].address, role.minter.hex));
         });
     });
 
@@ -222,10 +226,16 @@ describe('Affe mit Waffe Unit Testing',  () => {
             await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
             // Connect to the contract wihtout any particular role, but as the token owner
             const contractNoRole = await this.contract.connect(this.accounts[account.accNoRoles1.idx])
+            let balanceHolder1 = await this.contract.balanceOf(this.accounts[account.accNoRoles1.idx].address);
+            let balanceHolder2 = await this.contract.balanceOf(this.accounts[account.accNoRoles2.idx].address);
             await expect(contractNoRole.transferFrom(
                 this.accounts[account.accNoRoles1.idx].address, this.accounts[account.accNoRoles2.idx].address, tokenId))
                     .to.emit(this.contract, 'Transfer')
                     .withArgs(this.accounts[account.accNoRoles1.idx].address, this.accounts[account.accNoRoles2.idx].address, tokenId);
+            // Expect the contract to correctly update the owner and balance of
+            await expect(await this.contract.ownerOf(tokenId)).to.equal(this.accounts[account.accNoRoles2.idx].address);
+            await expect(await this.contract.balanceOf(this.accounts[account.accNoRoles1.idx].address)).to.equal(balanceHolder1 - 1);
+            await expect(await this.contract.balanceOf(this.accounts[account.accNoRoles2.idx].address)).to.equal(balanceHolder2 + 1);
         });
     
         it('should not allow an address to tranfer a token they do not own', async () => {
@@ -237,7 +247,8 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // Connect to the contract wihtout any particular role, and NOT as the token owner.
             // In this case, and address is trying to transfer to itself a token it does not own.
             const contractNoRole = await this.contract.connect(this.accounts[account.accNoRoles2.idx])
-            await expect(contractNoRole.transferFrom(this.accounts[account.accNoRoles1.idx].address, this.accounts[account.accNoRoles2.idx].address, tokenId))
+            await expect(contractNoRole.transferFrom(
+                this.accounts[account.accNoRoles1.idx].address, this.accounts[account.accNoRoles2.idx].address, tokenId))
                 .to.be.revertedWith('ERC721: transfer caller is not owner nor approved');
         });
     });
@@ -260,8 +271,14 @@ describe('Affe mit Waffe Unit Testing',  () => {
             await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
             await expect(await this.contract.ownerOf(tokenId.toString())).to.equal(this.accounts[account.accNoRoles1.idx].address);
             // Try to burn the token as the owner
-            await this.contract.connect(this.accounts[account.accNoRoles1.idx]).burn(tokenId);
+            await expect(this.contract.connect(this.accounts[account.accNoRoles1.idx]).burn(tokenId))
+                .to.emit(this.contract, 'Transfer')
+                .withArgs(this.accounts[account.accNoRoles1.idx].address, nullAddress, tokenId);
             await expect(await this.contract.balanceOf(this.accounts[account.accNoRoles1.idx].address)).to.equal(0);
+            // (Note in the line below, even though 'ownerOf' is a read-only function, so we should not
+            // need to 'connect', the 'to.be.reverdedWith' does not seem to work without a connection.)
+            await expect(this.contract.connect(this.accounts[account.accNoRoles2.idx]).ownerOf(tokenId))
+                .to.be.revertedWith('ERC721: owner query for nonexistent token');
         });
 
         it('should not allow an account to burn a token they do not own', async () => {
@@ -498,56 +515,43 @@ describe('Affe mit Waffe Unit Testing',  () => {
             await expect(contractAsNextAdmin.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address))
                     .to.be.revertedWith(accessControlRevertString(this.accounts[account.accNewAdmin.idx].address, role.admin.hex));
         });
-    
-        it('should not allow a non-admin address to grant any of the other roles', async () => {
-            // Connect to the contract as an address without any roles
-            const contractAsNobody = await this.contract.connect(this.accounts[account.accNoRoles2.idx]);
-            // Try to grant to each account the role it is supposed to have (and it should fail)
-            accountNames.forEach(async (anAccountName) => {
-                // We skip iterations of the loop where an account is not supposed to have
-                // an associated roled (so it will be 'undefined')
-                if (typeof account[anAccountName].role !== 'undefined') {
-                    const theRole = account[anAccountName].role.hex;
-                    const theAddress = this.accounts[account[anAccountName].idx].address;
-                    await expect(contractAsNobody.grantRole(theRole, theAddress))
-                        .to.be.revertedWith(
-                            accessControlRevertString(this.accounts[account.accNoRoles2.idx].address, role.admin.hex));
-                }
-            });
-        });
-    
-        it('should allow the new admin to take control of contract', async () => {
-            // Connect to the contract as a 'new' admin 
-            const contractAsNextAdmin = await this.contract.connect(this.accounts[account.accNewAdmin.idx])
-            // The new admin now gets territorial and revokes admin access from the 'first' admin
-            await contractAsNextAdmin.revokeRole(role.admin.hex, this.accounts[account.accDefaultAdmin.idx].address);
-            // Confirm that the 'previous' admin can no longer do 'admin stuff'
-            await expect(this.adminContract.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address))
-                .to.be.revertedWith(accessControlRevertString(this.accounts[account.accDefaultAdmin.idx].address, role.admin.hex));
-        });
     });
 
 
-    describe('Assign honorary owner role', () => {
+    describe('Transfer contract admin and (honorary) owner', () => {
         before(async () => {
           this.contract = await deployAMW721();
         });
     
+        it('should allow the new admin to take control of contract', async () => {
+            // Connect to the contract as admin, and add another address with 'default admin' role
+            const contractAsAdmin = await this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+            await contractAsAdmin.grantRole(role.admin.hex, this.accounts[account.accNewAdmin.idx].address);
+            // Connect to the contract as a 'new' admin 
+            const contractAsNextAdmin = await this.contract.connect(this.accounts[account.accNewAdmin.idx]);
+            // The new admin now gets territorial and revokes admin access from the 'first' admin
+            await contractAsNextAdmin.revokeRole(role.admin.hex, this.accounts[account.accDefaultAdmin.idx].address);
+            // Confirm that the 'previous' admin can no longer do 'admin stuff'
+            await expect(contractAsAdmin.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address))
+                .to.be.revertedWith(accessControlRevertString(this.accounts[account.accDefaultAdmin.idx].address, role.admin.hex));
+        });
+
         it('should allow the DEFAULT_ADMIN_ROLE to set the Honorary Owner', async () => {
             // Initially expect the owner to be the account that deployed the contract
             const initialOwner = await this.contract.owner();
             expect(initialOwner).to.equal(this.accounts[0].address);
-            // Connect to the contract as admin
-            const contractAsAdmin = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+            // Connect to the contract as admin (because of the prior test, we neec to connect as the 'new' admin)
+            const contractAsNextAdmin = this.contract.connect(this.accounts[account.accNewAdmin.idx]);
             // Make some address as the new honorary contract owner
-            await contractAsAdmin.setHonoraryOwner(this.accounts[account.accNoRoles1.idx].address);
-            // Check that his has in fact been correctly set
-            const newOwner = await this.contract.owner();
-            expect(newOwner).to.equal(this.accounts[account.accNoRoles1.idx].address);
+            await contractAsNextAdmin.setHonoraryOwner(this.accounts[account.accNoRoles1.idx].address);
+            // Check that this has in fact been correctly set
+            expect(await this.contract.owner()).to.equal(this.accounts[account.accNoRoles1.idx].address);
         });
     
         it('should not allow the Honorary Owner to be set to the null address', async () => {
-            await expect(this.contract.connect(this.accounts[account.accDefaultAdmin.idx]).setHonoraryOwner(nullAddress))
+            // Connect to the contract as admin (because of a prior test, we neec to connect as the 'new' admin)
+            const contractAsNextAdmin = this.contract.connect(this.accounts[account.accNewAdmin.idx]);
+            await expect(contractAsNextAdmin.setHonoraryOwner(nullAddress))
                 .to.be.revertedWith("New owner cannot be the zero address.");
         });
     });
@@ -800,206 +804,158 @@ describe('Affe mit Waffe Unit Testing',  () => {
         });
     });
 
+
+    describe('Freezing metadata', () => {
+        let tokenId = 0;
+        before(async () => {
+            this.contract = await deployAMW721();
+                this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+                await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+                await this.adminContract.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address);
+                await this.adminContract.grantRole(role.metadataFreezer.hex, this.accounts[account.accMetaDataFreezer.idx].address);
+                this.newUri = 'ipfs://some_new_uri/';
+                this.contractUri = 'ipfs://some_different_contract_uri/';
+        });
+
+        it('should allow ROLE_METADATA_FREEZER to freeze URIs', async () => {
+            tokenId++;
+            // Connect to the contract as the minter, and mint a token
+            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+            // Ensure metadata is not frozen
+            expect(await this.contract.areURIsForeverFrozen()).to.equal(false);
+            // Connect to the contract as the metadata freezer, and freeze the metadata forever
+            const contractAsMetadataFreezer = await this.contract.connect(this.accounts[account.accMetaDataFreezer.idx]);
+            await contractAsMetadataFreezer.freezeURIsForever();
+            // Ensure metadata is frozen
+            expect(await this.contract.areURIsForeverFrozen()).to.equal(true);
+
+        });
+    });
+
+
+    describe('Updating URIs', () => {
+        let tokenId = 0;
+        before(async () => {
+        this.contract = await deployAMW721();
+            this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+            await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+            await this.adminContract.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address);
+            await this.adminContract.grantRole(role.metadataFreezer.hex, this.accounts[account.accMetaDataFreezer.idx].address);
+            this.newUri = 'ipfs://some_new_uri/';
+            this.contractUri = 'ipfs://some_different_contract_uri/';
+        });
+
+        it('should allow the base URI to be set when not frozen', async () => {
+            tokenId++;
+            // Connect to the contract as the minter, and mint a token
+            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+            // Check the tokenURI is correct
+            expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString()+".json");
+            // Connect to the contract as the metadata updater, and update the baseURI
+            const contractAsMetadataUpdater = await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]);
+            await contractAsMetadataUpdater.setBaseURI(this.newUri);
+            // Check the tokenURI has been correctly updated
+            expect(await this.contract.tokenURI(tokenId)).to.equal(this.newUri+tokenId.toString()+".json");
+        }); 
+
+        it('should allow the contract URI to be set when not frozen', async () => {
+            // Connect to the contract as the metadata updater, and update the contract URI
+            const contractAsMetadataUpdater = await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]);
+            await contractAsMetadataUpdater.setContractURI(this.contractUri);
+            expect(await this.contract.contractURI()).to.equal(this.contractUri);
+        });
+
+        it('should not allow changes to URIs after freezing', async () => {
+            tokenId++;
+            // Connect to the contract as the minter, and mint a token
+            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+            // Connect to the contract as the metadata freezer, and freeze the metadata forever
+            const contractAsMetadataFreezer = await this.contract.connect(this.accounts[account.accMetaDataFreezer.idx]);
+            await contractAsMetadataFreezer.freezeURIsForever();
+            // Connect to the contract as the metadata updater, and try to do all the things
+            const contractAsMetadataUpdater = await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]);
+            await expect(contractAsMetadataUpdater.setContractURI('ipfs://yet_another_contract_uri/'))
+                        .to.be.revertedWith('URIManager: URIs have been frozen forever');
+            await expect(contractAsMetadataUpdater.setBaseURI('ipfs://yet_another_new_base_uri/'))
+                        .to.be.revertedWith('URIManager: URIs have been frozen forever');
+        });
+    });
+
+
+    describe('Token URI interference', () => {
+        let tokenId = 0;
+        before(async () => {
+            this.contract = await deployAMW721();
+                this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+                await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+                await this.adminContract.grantRole(role.metadataUpdater.hex, this.accounts[account.accMetaDataUpdater.idx].address);
+                this.newContractUri = 'ipfs://a_new_contract_uri/';
+                this.newBaseUri = 'ipfs://a_new_base_uri/';
+        });
+
+        it('should not affect the contract uri when the base uri is changed and vice versa', async () => {
+            tokenId++;
+            // Connect to the contract as the minter, and mint a token
+            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            await contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
+
+            const originalContractUri = await this.contract.contractURI();
+            expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString()+".json");
+            // Connect to the contract as the metadata updater, and update the contract URI
+            // expecting the baseURI for the tokens to be unaffected
+            const contractAsMetadataUpdater = await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]);
+            await contractAsMetadataUpdater.setContractURI(this.newContractUri);
+            expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString()+".json");
+
+            expect(await this.contract.contractURI()).to.equal(this.newContractUri);
+            // Update the baseURI, expecting the contract URI to be unaffected
+            await contractAsMetadataUpdater.setBaseURI(this.newBaseUri);
+            expect(await this.contract.contractURI()).to.equal(this.newContractUri);
+        });
+    });
+
+
+    describe('Max supply', () => {
+        beforeEach(async () => {
+            this.contract = await deployAMW721();
+            await this.contract.connect(this.accounts[account.accDefaultAdmin.idx]).
+                grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+        });
+
+        it('should not not allow minting more than the max supply', async () => {
+            const maxSupply = 250;
+            const batchLength = 100;
+            let transactions = [];
+            // Connect to the contract as the minter, and mint a token
+            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            // this loop batch mints tokens in intervals of "batchLength"
+            for(let i = 1; i<=maxSupply; i+=1){
+                // The 'i%20' mints tokens rount robin to 20 addresses, as the test blockchain
+                // being used provides 20 addresses.
+                transactions.push(contractAsMinter.safeMint(this.accounts[i%20].address, i));
+                // once transactions reaches the batch length or the loop is about to end,
+                // resolve all the promises in the transactions array
+                if(transactions.length === batchLength || i === maxSupply-1){
+                    // eslint-disable-next-line no-await-in-loop
+                    await Promise.all(transactions);
+                    transactions =  [];
+                }
+            }
+            // Check that maxSupply tokens were, in fact, minted
+            expect(await this.contract.numTokensMinted()).to.equal(maxSupply);
+            expect(await this.contract.totalSupply()).to.equal(maxSupply);
+            // Check that another token cannot be minted, after minting the maximum number
+            await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply+1))
+                    .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
+            // Ensure that even after burning a couple of tokens, another cannot be minted
+            this.contract.connect(this.accounts[1]).burn(1);
+            this.contract.connect(this.accounts[10]).burn(250);
+            await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply+1))
+                    .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
+        });
+    });
+
 });
-
-
-
-  
-
-
-
-
-
-
-  
-//   describe('Token URI', () => {
-//     before(async () => {
-//       this.contract = await deployRVPCEA();
-//       ({ chainId: this.chainId } = await ethers.provider.getNetwork());
-//       this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
-//       await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
-//       await this.adminContract.grantRole(uriSigningRoleHex, this.accounts[idxRoleUriSigner].address);
-//       await this.adminContract.grantRole(metaDataUpdaterRoleHex, this.accounts[account.accMetaDataUpdater.idx].address);
-//       await this.adminContract.grantRole(metaDataFreezerRoleHex, this.accounts[account.accMetaDataFreezer.idx].address);
-//       this.newUri = 'ipfs://new_uri/';
-//       this.contractUri = 'ipfs://contract_uri/';
-//       this.uriSignatures = generateValidUriSignatures(this.accounts[idxRoleUriSigner],
-//                                                       this.chainId,
-//                                                       this.contract.address, 
-//                                                       this.newUri);
-//     });
-
-//     it('should allow the base URI to be set when not frozen', async () => {
-//       const tokenId = 0;
-//       this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString());
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI(this.newUri);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(this.newUri+tokenId.toString());
-//     }); 
-    
-//     it('should be able to set and delete a custom URI when not frozen', async () => {
-//       const tokenId = 1;
-//       const customBaseURI = 'ipfs://custom_uri/';
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setCustomTokenURI(tokenId, customBaseURI);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(customBaseURI);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).deleteCustomTokenURI(tokenId);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(this.newUri+tokenId.toString());
-//     });
-
-//     it('should set the contract URI when not frozen', async () => {
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI(this.contractUri);
-//       expect(await this.contract.contractURI()).to.equal(this.contractUri);
-//     });
-
-//     it('should not allow changes to URIs after freezing', async () => {
-//       const tokenId = 2;
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-//       const newUri = "ipfs://new_uri/";
-//       await this.contract.connect(this.accounts[account.accMetaDataFreezer.idx]).freezeURIsForever();
-//       await expect(this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSetTokenURI(tokenId, newUri, this.uriSignatures[tokenId]))
-//                   .to.be.revertedWith('URIManager: URIs have been frozen forever');
-//       await expect(this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI('ipfs://new_contract_uri/'))
-//                   .to.be.revertedWith('URIManager: URIs have been frozen forever');
-//       await expect(this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI('ipfs://new_base_uri/'))
-//                   .to.be.revertedWith('URIManager: URIs have been frozen forever');
-//       await expect(this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).deleteCustomTokenURI(tokenId))
-//                   .to.be.revertedWith('URIManager: URIs have been frozen forever');
-//     });
-//   });
-
-//   describe('Token URI interference', () => {
-//     before(async () => {
-//       this.contract = await deployRVPCEA();
-//       ({ chainId: this.chainId } = await ethers.provider.getNetwork());
-//       this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
-//       await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
-//       await this.adminContract.grantRole(uriSigningRoleHex, this.accounts[idxRoleUriSigner].address);
-//       await this.adminContract.grantRole(metaDataUpdaterRoleHex, this.accounts[account.accMetaDataUpdater.idx].address);
-//       this.newCustomUri = 'ipfs://custom_uri/';
-//       this.newContractUri = 'ipfs://contract_uri/';
-//       this.newBaseUri = 'ipfs://base_uri/';
-//       this.uriSignatures = generateValidUriSignatures(this.accounts[idxRoleUriSigner],
-//                                                       this.chainId,
-//                                                       this.contract.address, 
-//                                                       this.newCustomUri);
-//     });
-
-//     it('should not effect the contract uri when the base uri is changed and vice versa', async () => {
-//       const tokenId = 0;
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-
-//       const originalContractUri = await this.contract.contractURI();
-
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString());
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI(this.contractUri);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString());
-
-//       expect(await this.contract.contractURI()).to.equal(this.contractUri);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI(this.newBaseUri);
-//       expect(await this.contract.contractURI()).to.equal(this.contractUri);
-
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI(expectedBaseTokenURI);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI(originalContractUri);
-//     });
-
-//     it('should not effect a custom uris when the base uri is changed and vice versa', async () => {
-//       const tokenId1 = 1;
-//       const tokenId2 = 2;
-
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId1);
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId2);
-
-//       expect(await this.contract.tokenURI(tokenId2)).to.equal(expectedBaseTokenURI+tokenId2.toString());
-//       await this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSetTokenURI(tokenId1, this.newCustomUri, this.uriSignatures[tokenId1]);
-//       expect(await this.contract.tokenURI(tokenId2)).to.equal(expectedBaseTokenURI+tokenId2.toString());
-
-//       expect(await this.contract.tokenURI(tokenId1)).to.equal(this.newCustomUri);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI(this.newBaseUri);
-//       expect(await this.contract.tokenURI(tokenId1)).to.equal(this.newCustomUri);
-
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setBaseURI(expectedBaseTokenURI);
-//     });
-
-//     it('should not effect a custom uri when the contract uri is changed and vice versa', async () => {
-//       const tokenId = 3;
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-
-//       const originalContractUri = await this.contract.contractURI();
-
-//       expect(await this.contract.contractURI()).to.equal(originalContractUri);
-//       await this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSetTokenURI(tokenId, this.newCustomUri, this.uriSignatures[tokenId]);
-//       expect(await this.contract.contractURI()).to.equal(originalContractUri);
-
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(this.newCustomUri);
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI(this.contractUri);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(this.newCustomUri);
-
-//       await this.contract.connect(this.accounts[account.accMetaDataUpdater.idx]).setContractURI(originalContractUri);
-//     });
-
-//     it('should delete the custom uri after a token is burned', async () => {
-//       const tokenId = 4;
-
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-//       await this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSetTokenURI(tokenId, this.newCustomUri, this.uriSignatures[tokenId]);
-      
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(this.newCustomUri);
-//       await this.contract.connect(this.accounts[account.accNoRoles1.idx]).burn(tokenId);
-//       await expect(this.contract.tokenURI(tokenId)).to.be.revertedWith('ERC721URIStorage: URI query for nonexistent token');
-
-//       await this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, tokenId);
-//       expect(await this.contract.tokenURI(tokenId)).to.equal(expectedBaseTokenURI+tokenId.toString());
-//     });
-//   });
-
-// describe('Max supply', () => {
-//     beforeEach(async () => {
-//       this.contract = await deployRVPCEA();
-//     });
-
-//     it('should not not mint more than the max supply of tokens with safeMint', async () => {
-//       await this.contract.connect(this.accounts[account.accDefaultAdmin.idx]).grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
-//       let transactions = [];
-//       // this loop batch mints tokens in intervals of "batchLength"
-//       for(let i = 0; i<maxSupply; i+=1){
-//         transactions.push(this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, i));
-//         // once transactions reaches the batch length or the loop is about the end, resolve all the promises in the transactions array
-//         if(transactions.length === batchLength || i === maxSupply-1){
-//           // eslint-disable-next-line no-await-in-loop
-//           await Promise.all(transactions);
-//           transactions =  [];
-//         }
-//       }
-//       await expect(this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply))
-//                 .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
-//       this.contract.connect(this.accounts[account.accNoRoles1.idx]).burn(0);
-//       await expect(this.contract.connect(this.accounts[account.accMinter.idx]).safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply))
-//                 .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
-//     }); 
-
-//     it('should not not mint more than the max supply of tokens with signatureBasedMint', async () => {
-//       await this.contract.connect(this.accounts[account.accDefaultAdmin.idx]).grantRole(minterSigningRoleHex, this.accounts[idxRoleMintSigner1].address);
-//       ({ chainId: this.chainId } = await ethers.provider.getNetwork());
-//       this.signatures = await Promise.all(generateValidMintingSignatures(this.accounts[idxRoleMintSigner1],
-//                                                                           this.chainId,
-//                                                                           this.contract.address, 
-//                                                                           this.accounts[account.accNoRoles1.idx].address));
-//       let transactions = [];
-//       // this loop batch mints tokens in intervals of "batchLength"
-//       for(let i = 0; i<maxSupply; i+=1){
-//         transactions.push(this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSafeMint(this.accounts[account.accNoRoles1.idx].address, i, this.signatures[i]));
-//         // once transactions reaches the batch length or the loop is about the end, resolve all the promises in the transactions array
-//         if(transactions.length === batchLength || i === maxSupply-1){
-//           // eslint-disable-next-line no-await-in-loop
-//           await Promise.all(transactions);
-//           transactions =  [];
-//         }
-//       }
-//       await expect(this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSafeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply, this.signatures[maxSupply]))
-//                 .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
-//       this.contract.connect(this.accounts[account.accNoRoles1.idx]).burn(0);
-//       await expect(this.contract.connect(this.accounts[account.accNoRoles1.idx]).signatureBasedSafeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply, this.signatures[maxSupply]))
-//                 .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
-//     }); 
-//   });
