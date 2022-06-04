@@ -17,6 +17,7 @@
       "ethers": "^5.6.8",
       "hardhat": "^2.9.7",
       "hardhat-gas-reporter": "^1.0.8",
+      "solidity-coverage": "^0.7.21",
       "@openzeppelin/contracts": "^4.6.0"
     }
 }
