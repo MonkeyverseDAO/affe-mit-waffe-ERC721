@@ -11,13 +11,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # - name: Setup Node
-      #   uses: actions/setup-node@v2
-      #   with:
-      #     node-version: 16
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
       
-      # - name: npm Install
-      #   run: npm install
+      - name: npm Install
+        run: npm install
       
       - name: Create env File
         run: |
@@ -29,5 +29,5 @@ jobs:
           ls -lah
           more .env
 
-      # - name: Run Hardhat Tests
-      #   run: npx hardhat test
+      - name: Run Hardhat Tests
+        run: npx hardhat test

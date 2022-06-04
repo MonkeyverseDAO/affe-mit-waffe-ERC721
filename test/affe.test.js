@@ -10,6 +10,12 @@ use(solidity)
 
 require('dotenv').config();
 const { CONTRACT_NAME, CONTRACT_SYMBOL, INITIAL_BASE_TOKEN_URI, INITIAL_CONTRACT_URI } = process.env;
+// Below are the expected parameters when deploying the contract
+const expectedContractName = 'AmWt01';
+const expectedTokenName = CONTRACT_NAME;
+const expectedTokenSymbol = CONTRACT_SYMBOL;
+const expectedBaseTokenURI = INITIAL_BASE_TOKEN_URI;
+const expectedContractURI = INITIAL_CONTRACT_URI;
 
 // Define an object to store information about roles
 const role = {
@@ -29,6 +35,8 @@ keys.forEach((key, val) => {
 // Access Control contract, we we hardcode that correct value here, instead
 // of the value that was set by keccak256 in the loop above
 role.admin.hex = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+const nullAddress = '0x0000000000000000000000000000000000000000'
 
 
 // Below are a set of declarations that help clarify what each account may be used for during the unit tests
@@ -64,43 +72,6 @@ account.accRoyaltySetter['role'] = role.royaltySetter
 account.accMetaDataUpdater['role'] = role.metadataUpdater
 account.accMetaDataFreezer['role'] = role.metadataFreezer
 account.accNewAdmin['role'] = role.admin
-
-
-// THE WAY THE ACCOUNTS WERE IMPLEMENTED ORIGINALLY
-// const idxRoleAdmin = 0;
-// const idxRoleMinter = 1;
-// const idxRoleNone1 = 2;
-// const idxRoleNone2 = 3;
-// const idxRolePause = 4;
-// const idxRoleRoyalty = 5;
-// const idxRoleMetaDataUpdater = 6;
-// const idxRoleMetaDataFreezer = 7;
-// const idxRoleNewAdmin = 8;
-
-const nullAddress = '0x0000000000000000000000000000000000000000'
-
-// THE WAY THE ROLES WERE IMPLEMENTED ORIGINALLY
-// const roleAsHexADMIN = '0x0000000000000000000000000000000000000000000000000000000000000000';
-// const roleAsHexMinter = utils.keccak256(utils.toUtf8Bytes(role.minter.string));
-// const roleAsHexPauser = utils.keccak256(utils.toUtf8Bytes(role.pauser.string));
-// const roleAsHexRoyaltyManager = utils.keccak256(utils.toUtf8Bytes(role.royaltySetter.string));
-// const roleAsHexMetaDataUpdater = utils.keccak256(utils.toUtf8Bytes(role.metadataUpdater.string));
-// const roleAsHexMetaDataFreezer = utils.keccak256(utils.toUtf8Bytes(role.metadataFreezer.string));
-
-// const accountIdxToHexRolePairs = [[account.accDefaultAdmin.idx, role.admin.hex],
-//                          [account.accMinter.idx, role.minter.hex],
-//                          [account.accPauser.idx, role.pauser.hex],
-//                          [account.accRoyaltySetter.idx, role.royaltySetter.hex],
-//                          [account.accMetaDataUpdater.idx, role.metadataUpdater.hex],
-//                          [account.accMetaDataFreezer.idx, role.metadataFreezer.hex],
-//                         ];
-
-// Below are the expected parameters when deploying the contract and signing messages
-const expectedContractName = 'AmWt01';
-const expectedTokenName = CONTRACT_NAME;
-const expectedTokenSymbol = CONTRACT_SYMBOL;
-const expectedBaseTokenURI = INITIAL_BASE_TOKEN_URI;
-const expectedContractURI = INITIAL_CONTRACT_URI;
 
 // Below are the relevant Interface Ids
 const IERC2981 = '0x01ffc9a7';
