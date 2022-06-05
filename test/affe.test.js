@@ -933,31 +933,47 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
     describe('Basic Lending Functionality', () => {
         let tokenId = 0;
+        let contractAsMinter;
+        let addressOfRightfulOwner;
+        let addressOfBorrower;
         before(async () => {
             this.contract = await deployAMW721();
                 this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
                 await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+            // Connect to the contract as the minter
+            contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            addressOfRightfulOwner = this.accounts[account.accNoRoles1.idx].address;
+            addressOfBorrower = this.accounts[account.accNoRoles2.idx].address;
         });
 
         it('should allow an owner to lend a token', async () => {
-            let addressOfOwner = this.accounts[account.accNoRoles1.idx].address;
-            let addressOfBorrower = this.accounts[account.accNoRoles2.idx].address;
-            // Connect to the contract as the minter, and mint a couple of tokens
-            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            // Mint a couple of tokens
             tokenId++;
-            await contractAsMinter.safeMint(addressOfOwner, tokenId);
+            await contractAsMinter.safeMint(addressOfRightfulOwner, tokenId);
             tokenId++;
-            await contractAsMinter.safeMint(addressOfOwner, tokenId);
+            await contractAsMinter.safeMint(addressOfRightfulOwner, tokenId);
             // Connect to the contract as the token owner, and lend a token
             const contractAsTokenOwner = await this.contract.connect(this.accounts[account.accNoRoles1.idx]);
             await expect(await contractAsTokenOwner.loan(addressOfBorrower, tokenId))
-                .to.emit(this.contract, 'Loan').withArgs(addressOfOwner, addressOfBorrower, tokenId);
+                .to.emit(this.contract, 'Loan').withArgs(addressOfRightfulOwner, addressOfBorrower, tokenId);
             // Expect ownership and balances to be correct
-            expect(await this.contract.ownerOf(tokenId-1)).to.equal(addressOfOwner);
+            expect(await this.contract.ownerOf(tokenId-1)).to.equal(addressOfRightfulOwner);
             expect(await this.contract.ownerOf(tokenId)).to.equal(addressOfBorrower);
-            expect(await this.contract.balanceOf(addressOfOwner)).to.equal(1);
+            expect(await this.contract.balanceOf(addressOfRightfulOwner)).to.equal(1);
             expect(await this.contract.balanceOf(addressOfBorrower)).to.equal(1);
         });
+
+        it('should allow an owner to recall a loan', async () => {
+            // Connect to the contract as the token owner
+            const contractAsTokenOwner = await this.contract.connect(this.accounts[account.accNoRoles1.idx]);
+            // Recall the loan made during the previous 'it should' section
+            await expect(await contractAsTokenOwner.reclaimLoan(tokenId))
+                .to.emit(this.contract, 'LoanRetrieved').withArgs(addressOfRightfulOwner, addressOfBorrower, tokenId);
+            // Expect ownership to be correct
+            expect(await this.contract.ownerOf(tokenId)).to.equal(addressOfRightfulOwner);
+        });
+
+
     });
 
 
