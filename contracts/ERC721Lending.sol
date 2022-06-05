@@ -95,7 +95,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      * @param tokenId is the integer ID of the token to loan.
      * @param receiver is the address that the token will be loaned to.
      */
-    function loan(uint256 tokenId, address receiver) external nonReentrant allowIfLendingNotPaused {
+    function loan(address receiver, uint256 tokenId) external nonReentrant allowIfLendingNotPaused {
         require(msg.sender == ownerOf(tokenId), "ERC721Lending: Trying to lend a token that is not owned.");
         require(msg.sender != receiver, "ERC721Lending: Lending to self (the current owner's address) is not permitted.");
         require(receiver != address(0), "ERC721Lending: Loans to the zero 0x0 address are not permitted.");
