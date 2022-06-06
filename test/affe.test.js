@@ -997,7 +997,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
     describe('Contract and lending enumeration', () => {
         const maxSupply = 250;
         let contractAsMinter;
-        const numTokensToBatchMint = 10;
+        const numTokensToBatchMint = 60;
         let batchNumber = 0;
         const transactions = [];
         firstTokenIdOffset = 1000;
@@ -1023,11 +1023,14 @@ describe('Affe mit Waffe Unit Testing',  () => {
         const tokensLoanedByLender2 = [];
         const tokensLoanedByLender3 = [];
         let idxArbitraryAccount1 = 13;
+        let accArbitraryAccount1;
         let idxArbitraryAccount2 = 14;
+        let accArbitraryAccount2;
         let idxArbitraryAccount3 = 15;
-        const tokensLoanedToArbitraryAccount1 = [];
-        const tokensLoanedToArbitraryAccount2 = [];
-        const tokensLoanedToArbitraryAccount3 = [];
+        let accArbitraryAccount3;
+        const tokensOwnedByArbitraryAccount1 = [];
+        const tokensOwnedByArbitraryAccount2 = [];
+        const tokensOwnedByArbitraryAccount3 = [];
         tokensMinted = 0;
         before(async () => {
             this.contract = await deployAMW721();
@@ -1043,6 +1046,10 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // We'll make the 3rd lender an arbitrary index from the addresses available
             idxLender3 = 11;
             accLender3 = this.accounts[idxLender3];
+            // Some arbitrary accounts we'll track loans to
+            accArbitraryAccount1 = this.accounts[idxArbitraryAccount1];
+            accArbitraryAccount2 = this.accounts[idxArbitraryAccount2];
+            accArbitraryAccount3 = this.accounts[idxArbitraryAccount3];
         });
 
         it('should allow many tokens to be minted to many owners', async () => {
@@ -1057,11 +1064,14 @@ describe('Affe mit Waffe Unit Testing',  () => {
             limit = firstTokenIdOffset + (numTokensToBatchMint*batchNumber);
             for(tokenIndex = startAt; tokenIndex<=limit; tokenIndex++){
                 if (tokensMinted >= maxSupply) { break; }
-                // The 'i%20' mints tokens rount robin to 20 addresses (as the test blockchain
+                // The 'i%20' mints tokens round robin to 20 addresses (as the test blockchain
                 // being used provides 20 addresses).
-                if (tokenIndex%20 === idxLender1) { tokensLender1Owns.push(tokenIndex) }
-                if (tokenIndex%20 === idxLender2) { tokensLender2Owns.push(tokenIndex) }
-                if (tokenIndex%20 === idxLender3) { tokensLender3Owns.push(tokenIndex) }
+                if (tokenIndex%20 === idxLender1) { tokensLender1Owns.push(tokenIndex); }
+                if (tokenIndex%20 === idxLender2) { tokensLender2Owns.push(tokenIndex); }
+                if (tokenIndex%20 === idxLender3) { tokensLender3Owns.push(tokenIndex); }
+                if (tokenIndex%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(tokenIndex); }
+                if (tokenIndex%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(tokenIndex); }
+                if (tokenIndex%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(tokenIndex); }
                 transactions.push(contractAsMinter.safeMint(this.accounts[tokenIndex%20].address, tokenIndex));
                 tokensMinted++;
             }
@@ -1144,8 +1154,10 @@ describe('Affe mit Waffe Unit Testing',  () => {
                     tokensLender1Owns.splice(tokensLender1Owns.indexOf(i), 1);
                     // Tracking off-chain the loans made by Lender1
                     tokensLoanedByLender1.push(i)
-                    // Tracking off-chain the loans made to an arbitrarily chosen account
-                    if (i%20 === idxArbitraryAccount1) { tokensLoanedToArbitraryAccount1.push(i); }
+                    // Tracking off-chain the loans made to some arbitrarily chosen accounts
+                    if (i%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(i); }
+                    if (i%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(i); }
+                    if (i%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(i); }
                     // We are also tracking off-chain the tokens owned by other lenders, so if Lender1
                     // lends to them, we need to include that in their ownership
                     if (i%20 === idxLender2) { tokensLender2Owns.push(i) }
@@ -1174,8 +1186,10 @@ describe('Affe mit Waffe Unit Testing',  () => {
                     tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1);
                     // Tracking off-chain the loans made by Lender2
                     tokensLoanedByLender2.push(i)
-                    // Tracking off-chain the loans made to an arbitrarily chosen account
-                    if (i%20 === idxArbitraryAccount2) { tokensLoanedToArbitraryAccount2.push(i); }
+                    // Tracking off-chain the loans made to some arbitrarily chosen accounts
+                    if (i%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(i); }
+                    if (i%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(i); }
+                    if (i%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(i); }
                     // We are also tracking off-chain the tokens owned by other lenders, so if Lender2
                     // lends to them, we need to include that in their ownership
                     if (i%20 === idxLender1) { tokensLender1Owns.push(i) }
@@ -1204,8 +1218,10 @@ describe('Affe mit Waffe Unit Testing',  () => {
                     tokensLender3Owns.splice(tokensLender3Owns.indexOf(i), 1);
                     // Tracking off-chain the loans made by Lender3
                     tokensLoanedByLender3.push(i)
-                    // Tracking off-chain the loans made to an arbitrarily chosen account
-                    if (i%20 === idxArbitraryAccount3) { tokensLoanedToArbitraryAccount3.push(i); }
+                    // Tracking off-chain the loans made to some arbitrarily chosen accounts
+                    if (i%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(i); }
+                    if (i%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(i); }
+                    if (i%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(i); }
                     // We are also tracking off-chain the tokens owned by other lenders, so if Lender3
                     // lends to them, we need to include that in their ownership
                     if (i%20 === idxLender1) { tokensLender1Owns.push(i) }
@@ -1247,9 +1263,87 @@ describe('Affe mit Waffe Unit Testing',  () => {
                 .to.eql(tokensLender3Owns.sort());
             expect((await this.contract.loanedTokensByAddress(accLender3.address)).map(bigNum => bigNum.toNumber()).sort())
                 .to.eql(tokensLoanedByLender3.sort());
-
-
+            // Also check the balances and listings of the addresses the tokens were lent to (the borrowers)
+            expect(await this.contract.balanceOf(accArbitraryAccount1.address)).to.equal(tokensOwnedByArbitraryAccount1.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount1.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount1.sort());
+            expect(await this.contract.balanceOf(accArbitraryAccount2.address)).to.equal(tokensOwnedByArbitraryAccount2.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount2.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount2.sort());
+            expect(await this.contract.balanceOf(accArbitraryAccount3.address)).to.equal(tokensOwnedByArbitraryAccount3.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount3.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount3.sort());
         });
+
+        // it('should allow an owner to recall loans', async () => {
+        //     // Connect to the contract as the (first) rightful owner of a bunch of tokens
+        //     contractAsLender1 = await this.contract.connect(accLender1);
+        //     // In this loop the rightful owner of a bunch of tokens lends them out to many
+        //     // addressess
+        //     for(i = startingBatchIdOfOwner1; i<startingBatchIdOfOwner1+numTokensToBatchMint; i++){
+        //         if (i > firstTokenIdOffset + maxSupply) { break; }
+        //         // We need to check that the current tokenId (represented by 'i' is)
+        //         // not mod 20, because it would not have been able to lend a token to self,
+        //         // so we should not attempt to recall it
+        //         if (i%20 !== idxLender1) {
+        //             // The 'i%20' lends tokens rount robin to 20 addresses (as the test blockchain
+        //             // being used provides 20 addresses).
+        //             transactions.push(contractAsLender1.reclaimLoan(this.accounts[i%20].address, i));
+        //             // Remove the token from the array being used off-chain to track Lender1's ownership
+        //             tokensLender1Owns.push(i);
+        //             // Tracking off-chain the loans made by Lender1
+        //             tokensLoanedByLender1.splice(tokensLoanedByLender1.indexOf(i), 1);
+        //             // Tracking off-chain the loans made to an arbitrarily chosen account
+        //             if (i%20 === idxArbitraryAccount1) {
+        //                 tokensOwnedByArbitraryAccount1.splice(tokensOwnedByArbitraryAccount1.indexOf(i), 1);
+        //             }
+        //             // We are also tracking off-chain the tokens owned by other lenders, so if Lender1
+        //             // lent to them, we need to remove the recalled token from their ownership
+        //             if (i%20 === idxLender2) { tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1) }
+        //             if (i%20 === idxLender3) { tokensLender3Owns.splice(tokensLender2Owns.indexOf(i), 1) }
+        //         }
+        //     }
+        //     await Promise.all(transactions);
+        //     // reset the array
+        //     transactions.length =  0;
+
+            
+
+        //     // // Check that the contract variables numTokensMinted and totalSupply are still correct
+        //     // expect(await this.contract.numTokensMinted()).to.equal(tokensMinted);
+        //     // expect(await this.contract.totalSupply()).to.equal(tokensMinted);
+        //     // // Check totalLoaned taking into account an owner cannot lend to themselves
+        //     // // So the total should be the amount in each batch mint, times 3 (because of three owners that
+        //     // // have loaned out all their tokens that were batch minted to them), minus the number
+        //     // // that each rightful owner was unable to loan (because they cannot loan to themselves.)
+        //     // expect(await this.contract.totalLoaned()).to.equal(
+        //     //     tokensLoanedByLender1.length + tokensLoanedByLender2.length + tokensLoanedByLender3.length);
+        //     // // Check the balanceOf and loanedBalanceOf the rightful owners are correct;
+        //     // expect(await this.contract.balanceOf(accLender1.address)).to.equal(tokensLender1Owns.length);
+        //     // expect(await this.contract.loanedBalanceOf(accLender1.address)).to.equal(tokensLoanedByLender1.length);
+        //     // expect(await this.contract.balanceOf(accLender2.address)).to.equal(tokensLender2Owns.length);
+        //     // expect(await this.contract.loanedBalanceOf(accLender2.address)).to.equal(tokensLoanedByLender2.length);
+        //     // expect(await this.contract.balanceOf(accLender3.address)).to.equal(tokensLender3Owns.length);
+        //     // expect(await this.contract.loanedBalanceOf(accLender3.address)).to.equal(tokensLoanedByLender3.length);
+        //     // // Check the right ownership list and loans list of each lender. Ethers returns the answer from
+        //     // // the contract as a big number, which needs to be mapped to a regular javascript integer
+        //     // // @dev - NOTE the use of chai's 'eql' operator to compare the arrays, rather than the usual 'equal'
+        //     // expect((await this.contract.ownedTokensByAddress(accLender1.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLender1Owns.sort());
+        //     // expect((await this.contract.loanedTokensByAddress(accLender1.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLoanedByLender1.sort());
+        //     // expect((await this.contract.ownedTokensByAddress(accLender2.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLender2Owns.sort());
+        //     // expect((await this.contract.loanedTokensByAddress(accLender2.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLoanedByLender2.sort());
+        //     // expect((await this.contract.ownedTokensByAddress(accLender3.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLender3Owns.sort());
+        //     // expect((await this.contract.loanedTokensByAddress(accLender3.address)).map(bigNum => bigNum.toNumber()).sort())
+        //     //     .to.eql(tokensLoanedByLender3.sort());
+        // });
+
+
+
     });
 
 });
