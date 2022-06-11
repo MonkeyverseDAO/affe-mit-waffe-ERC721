@@ -266,6 +266,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
         });
     });
 
+
     describe('Contract pausing and then unpausing', () => {
         before(async () => {
             this.contract = await deployAMW721();
@@ -284,6 +285,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
     });
 
+    
     describe('Pause contract transfers', () => {
         tokenId = 0;
         before(async () => {

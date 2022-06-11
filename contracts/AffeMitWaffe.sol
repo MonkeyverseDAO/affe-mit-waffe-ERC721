@@ -269,11 +269,8 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
-    // The following functions are overrides required by Solidity.
 
-    function _baseURI() internal view override returns (string memory) {
-        return _getBaseURI();
-    }
+    // The following functions are overrides required by Solidity.
 
     function supportsInterface(bytes4 interfaceId)
         public
