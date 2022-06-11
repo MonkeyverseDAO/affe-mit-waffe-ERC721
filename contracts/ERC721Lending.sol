@@ -67,7 +67,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      * @param fromBorrower is the address the token was lent out to.
      * @param item is the tokenID representing the token that was lent.
      */
-    event LoanRetrieved(address indexed byOriginalOwner, address indexed fromBorrower, uint item);
+    event LoanReclaimed(address indexed byOriginalOwner, address indexed fromBorrower, uint item);
     /**
      * @notice Emitted when a loan is returned by the borrower.
      * @param byBorrower is the address that token has been lent to.
@@ -144,7 +144,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // pass an empty string as the 'data'.)
         _safeTransfer(borrowerAddress, rightfulOwner, tokenId, "");
 
-        emit LoanRetrieved(rightfulOwner, borrowerAddress, tokenId);
+        emit LoanReclaimed(rightfulOwner, borrowerAddress, tokenId);
     }
 
     /**
@@ -207,6 +207,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      *   them to implement their own restrictions, such as Access Control.
      */
     function _unpauseLending() internal {
+        require(loansAreCurrentlyPaused, "ERC721Lending: Lending of tokens is already in unpaused state.");
         loansAreCurrentlyPaused = false;
         emit LendingUnpaused(msg.sender);
     }
