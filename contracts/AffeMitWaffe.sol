@@ -232,19 +232,25 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
      *   tokenIds on loan.
      * @return an array with the tokenIds currently on loan by the origina/rightful owner.
      */
-    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
+    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory) {
         require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
         uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
         uint256 numGlobalTotalTokens = totalSupply();
+        uint256 nextTokenIdToQuery;
 
         uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
         // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
         if (numTokensLoanedByRightfulOwner > 0) {
             uint256 numMatchingTokensFound = 0;
-            // Continue searching in the loop until ...
-            for (uint256 i = 0; i < numGlobalTotalTokens && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
-                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
-                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
+            // Continue searching in the loop until either all tokens in the collection have been examined
+            // or the number of tokens being searched for (the number owned originally by the rightful
+            // owner) have been found.
+            for (uint256 i = 0; numMatchingTokensFound < numTokensLoanedByRightfulOwner && i < numGlobalTotalTokens; i++) {
+                // TokenIds may not be sequential or even within a specific range, so we get the next tokenId (to 
+                // lookup in the mapping) from the global array holding all tokens.
+                nextTokenIdToQuery = tokenByIndex(i);
+                if (mapFromTokenIdToRightfulOwner[nextTokenIdToQuery] == rightfulOwner) {
+                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = nextTokenIdToQuery;
                     numMatchingTokensFound++;
                 }
             }
@@ -263,11 +269,8 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
-    // The following functions are overrides required by Solidity.
 
-    function _baseURI() internal view override returns (string memory) {
-        return _getBaseURI();
-    }
+    // The following functions are overrides required by Solidity.
 
     function supportsInterface(bytes4 interfaceId)
         public
