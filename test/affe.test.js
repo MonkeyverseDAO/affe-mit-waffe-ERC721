@@ -891,18 +891,19 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
 
     describe('Max supply', () => {
-        beforeEach(async () => {
+        const maxSupply = 250;
+        let contractAsMinter;
+        before(async () => {
             this.contract = await deployAMW721();
             await this.contract.connect(this.accounts[account.accDefaultAdmin.idx]).
                 grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+            // Connect to the contract as the minter
+            contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
         });
 
         it('should not allow minting more than the max supply', async () => {
-            const maxSupply = 250;
             const batchLength = 100;
             let transactions = [];
-            // Connect to the contract as the minter, and mint a token
-            const contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
             // this loop batch mints tokens in intervals of "batchLength"
             for(let i = 1; i<=maxSupply; i+=1){
                 // The 'i%20' mints tokens rount robin to 20 addresses, as the test blockchain
@@ -922,8 +923,14 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // Check that another token cannot be minted, after minting the maximum number
             await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply+1))
                     .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
-            // Ensure that even after burning a couple of tokens, another cannot be minted
+        });
+
+        it('should not allow minting more than the max supply, even if tokens are burned', async () => {
+            // Ensure that even after burning a token, another cannot be minted
             this.contract.connect(this.accounts[1]).burn(1);
+            await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply+1))
+                    .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
+            // Try even after buring another token
             this.contract.connect(this.accounts[10]).burn(250);
             await expect(contractAsMinter.safeMint(this.accounts[account.accNoRoles1.idx].address, maxSupply+1))
                     .to.be.revertedWith('The maximum number of tokens that can ever be minted has been reached.');
@@ -983,7 +990,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
             const contractAsRightfulOwner = await this.contract.connect(accountRightfulOwner);
             // Recall the loan made during the previous 'it should' section
             await expect(await contractAsRightfulOwner.reclaimLoan(tokenId))
-                .to.emit(this.contract, 'LoanRetrieved').withArgs(addressRightfulOwner, addressBorrower, tokenId);
+                .to.emit(this.contract, 'LoanReclaimed').withArgs(addressRightfulOwner, addressBorrower, tokenId);
             // Expect ownership and balances to be correct
             expect(await this.contract.ownerOf(tokenId-1)).to.equal(addressRightfulOwner);
             expect(await this.contract.ownerOf(tokenId)).to.equal(addressRightfulOwner);
@@ -1313,6 +1320,184 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
     });
 
+
+    describe('Ability to Pause Lending', () => {
+        let tokenId = 0;
+        let token1;
+        let token2;
+        let token3;
+        let token4;
+        let contractAsMinter;
+        let contractAsPauser;
+        let accountRightfulOwner;
+        let accountBorrower;
+        let addressRightfulOwner;
+        let addressBorrower;
+        before(async () => {
+            this.contract = await deployAMW721();
+                this.adminContract = this.contract.connect(this.accounts[account.accDefaultAdmin.idx]);
+                await this.adminContract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address);
+                await this.adminContract.grantRole(role.pauser.hex, this.accounts[account.accPauser.idx].address);
+            // Connect to the contract as the minter
+            contractAsMinter = await this.contract.connect(this.accounts[account.accMinter.idx]);
+            // Connect to the contract as the pauser
+            contractAsPauser = await this.contract.connect(this.accounts[account.accPauser.idx]);
+            accountRightfulOwner = this.accounts[account.accNoRoles1.idx];
+            accountBorrower = this.accounts[account.accNoRoles2.idx];
+            addressRightfulOwner = accountRightfulOwner.address;
+            addressBorrower = accountBorrower.address;
+        });
+
+        it('should allow lending to be paused', async () => {
+            tokenId++;
+            // Mint some tokens
+            token1 = tokenId++;
+            await contractAsMinter.safeMint(addressRightfulOwner, token1);
+            token2 = tokenId++;
+            await contractAsMinter.safeMint(addressRightfulOwner, token2);
+            token3 = tokenId++;
+            await contractAsMinter.safeMint(addressRightfulOwner, token3);
+            // Connect to the contract as the token owner, and lend the first and second tokens
+            // that were minted
+            const contractAsRightfulOwner = await this.contract.connect(accountRightfulOwner);
+            await expect(await contractAsRightfulOwner.loan(addressBorrower, token1))
+                .to.emit(this.contract, 'Loan').withArgs(addressRightfulOwner, addressBorrower, token1);
+            await expect(await contractAsRightfulOwner.loan(addressBorrower, token2))
+                .to.emit(this.contract, 'Loan').withArgs(addressRightfulOwner, addressBorrower, token2);
+            // Pause lending
+            await expect(await contractAsPauser.pauseLending())
+                .to.emit(this.contract, 'LendingPaused').withArgs(this.accounts[account.accPauser.idx].address);
+            // Expect ownership and balances to be correct
+            expect(await this.contract.ownerOf(token1)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token2)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token3)).to.equal(addressRightfulOwner);
+            expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(1);
+            expect(await this.contract.balanceOf(addressBorrower)).to.equal(2);
+            // @dev - NOTE the use of chai's 'eql' operator to 'deep' compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()))
+                .to.eql([3]);
+            expect((await this.contract.loanedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql([1, 2]);
+            expect((await this.contract.ownedTokensByAddress(addressBorrower)).map(bigNum => bigNum.toNumber()))
+                .to.eql([1, 2]);
+        });
+
+        it('should not allow pausing loans when they are already paused', async () => {
+            // Try to pause lending again, expecting it to fail
+            await expect(contractAsPauser.pauseLending())
+                .to.be.revertedWith("ERC721Lending: Lending of tokens is currently paused.");
+        });
+
+        it('should not allow new loans to be made when lending is paused', async () => {
+            // Connect to the contract as the token owner, and try to lend the third
+            // token that was minted (prior to the lending being set to the paused state)
+            const contractAsRightfulOwner = await this.contract.connect(accountRightfulOwner);
+            await expect(contractAsRightfulOwner.loan(addressBorrower, token3))
+                .to.be.revertedWith("ERC721Lending: Lending of tokens is currently paused.");
+            // Mint another token, and try to lend this one, which is being minted WHILE the
+            // contract is in the paused state
+            token4 = tokenId++;
+            await contractAsMinter.safeMint(addressRightfulOwner, token4);
+            await expect(contractAsRightfulOwner.loan(addressBorrower, token4))
+                .to.be.revertedWith("ERC721Lending: Lending of tokens is currently paused.");
+            // Expect ownership and balances to be correct
+            expect(await this.contract.ownerOf(token1)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token2)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token3)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token4)).to.equal(addressRightfulOwner);
+            expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(2);
+            expect(await this.contract.balanceOf(addressBorrower)).to.equal(2);
+            // @dev - NOTE the use of chai's 'eql' operator to 'deep' compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()))
+                .to.eql([3, 4]);
+            expect((await this.contract.loanedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql([1, 2]);
+            expect((await this.contract.ownedTokensByAddress(addressBorrower)).map(bigNum => bigNum.toNumber()))
+                .to.eql([1, 2]);
+        });
+
+        it('should allow an owner to reclaim a loan when lending is paused', async () => {
+            // Connect to the contract as the rightful token owner, and try to reclaim the second token
+            // that was lent, expecting it to succeed
+            const contractAsRightfulOwner = await this.contract.connect(accountRightfulOwner);
+            await expect(contractAsRightfulOwner.reclaimLoan(token2))
+                .to.emit(this.contract, 'LoanReclaimed').withArgs(addressRightfulOwner, addressBorrower, token2);
+            // Expect ownership and balances to be correct
+            expect(await this.contract.ownerOf(token1)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token2)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token3)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token4)).to.equal(addressRightfulOwner);
+            expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(3);
+            expect(await this.contract.balanceOf(addressBorrower)).to.equal(1);
+            // @dev - NOTE the use of chai's 'eql' operator to 'deep' compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()))
+                .to.eql([3, 4, 2]);
+            expect((await this.contract.loanedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql([1]);
+            expect((await this.contract.ownedTokensByAddress(addressBorrower)).map(bigNum => bigNum.toNumber()))
+                .to.eql([1]);
+        });
+
+        it('should allow a borrower to return a loan when lending is paused', async () => {
+            // Connect to the contract as the borrower, and try to return the first token
+            // that was lent, expecting it to succeed
+            const contractAsTokenBorrower = await this.contract.connect(accountBorrower);
+            await expect(contractAsTokenBorrower.returnLoanByBorrower(token1))
+                .to.emit(this.contract, 'LoanReturned').withArgs(addressBorrower, addressRightfulOwner, token1);
+            // Expect ownership and balances to be correct
+            expect(await this.contract.ownerOf(token1)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token2)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token3)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token4)).to.equal(addressRightfulOwner);
+            expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(4);
+            expect(await this.contract.balanceOf(addressBorrower)).to.equal(0);
+            // @dev - NOTE the use of chai's 'eql' operator to 'deep' compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()))
+                .to.eql([3, 4, 2, 1]);
+            expect((await this.contract.loanedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql([]);
+            expect((await this.contract.ownedTokensByAddress(addressBorrower)).map(bigNum => bigNum.toNumber()))
+                .to.eql([]);
+        });
+
+        it('should allow UNpausing loans when they are paused', async () => {
+            // Try to pause lending again, expecting it to fail
+            await expect(contractAsPauser.unpauseLending())
+                .to.emit(this.contract, 'LendingUnpaused').withArgs(this.accounts[account.accPauser.idx].address);
+        });
+
+        it('should not allow unpausing loans when they are already unpaused', async () => {
+            // Try to pause lending again, expecting it to fail
+            await expect(contractAsPauser.unpauseLending())
+                .to.be.revertedWith("ERC721Lending: Lending of tokens is already in unpaused state.");
+        });
+
+        it('should allow lending to be resumed after lending is unpaused', async () => {
+            // Connect to the contract as the token owner, and lend the first and fourth tokens
+            // that were minted
+            const contractAsRightfulOwner = await this.contract.connect(accountRightfulOwner);
+            await expect(await contractAsRightfulOwner.loan(addressBorrower, token1))
+                .to.emit(this.contract, 'Loan').withArgs(addressRightfulOwner, addressBorrower, token1);
+            await expect(await contractAsRightfulOwner.loan(addressBorrower, token4))
+                .to.emit(this.contract, 'Loan').withArgs(addressRightfulOwner, addressBorrower, token4);
+            // Expect ownership and balances to be correct
+            expect(await this.contract.ownerOf(token1)).to.equal(addressBorrower);
+            expect(await this.contract.ownerOf(token2)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token3)).to.equal(addressRightfulOwner);
+            expect(await this.contract.ownerOf(token4)).to.equal(addressBorrower);
+            expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(2);
+            expect(await this.contract.balanceOf(addressBorrower)).to.equal(2);
+            // @dev - NOTE the use of chai's 'eql' operator to 'deep' compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()))
+                .to.eql([3, 2]);
+            expect((await this.contract.loanedTokensByAddress(addressRightfulOwner)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql([1, 4]);
+            expect((await this.contract.ownedTokensByAddress(addressBorrower)).map(bigNum => bigNum.toNumber()))
+                .to.eql([1, 4]);
+        });
+
+
+    });
 
     describe('Contract and lending enumeration', () => {
         const maxSupply = 250;
