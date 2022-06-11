@@ -997,7 +997,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
     describe('Contract and lending enumeration', () => {
         const maxSupply = 250;
         let contractAsMinter;
-        const numTokensToBatchMint = 60;
+        const numTokensToBatchMint = 15;
         let batchNumber = 0;
         const transactions = [];
         firstTokenIdOffset = 1000;
@@ -1016,9 +1016,10 @@ describe('Affe mit Waffe Unit Testing',  () => {
         let startingBatchIdOfOwner1;
         let startingBatchIdOfOwner2;
         let startingBatchIdOfOwner3;
-        let numTokensOwner1DidNotLend;
-        let numTokensOwner2DidNotLend;
-        let numTokensOwner3DidNotLend;
+        // let numTokensOwner1DidNotLend;
+        // let numTokensOwner2DidNotLend;
+        // let numTokensOwner3DidNotLend;
+        let numTokensOwner2burned = 0;
         const tokensLoanedByLender1 = [];
         const tokensLoanedByLender2 = [];
         const tokensLoanedByLender3 = [];
@@ -1138,8 +1139,8 @@ describe('Affe mit Waffe Unit Testing',  () => {
         it('should allow some owners to lend many of their tokens', async () => {
             // Connect to the contract as the (first) rightful owner of a bunch of tokens
             contractAsLender1 = await this.contract.connect(accLender1);
-            // Track the number of tokens the owner skips from lending because they own them
-            numTokensOwner1DidNotLend = 0;
+            // // Track the number of tokens the owner skips from lending because they own them
+            // numTokensOwner1DidNotLend = 0;
             // In this loop the rightful owner of a bunch of tokens lends them out to many
             // addressess
             for(i = startingBatchIdOfOwner1; i<startingBatchIdOfOwner1+numTokensToBatchMint; i++){
@@ -1162,7 +1163,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
                     // lends to them, we need to include that in their ownership
                     if (i%20 === idxLender2) { tokensLender2Owns.push(i) }
                     if (i%20 === idxLender3) { tokensLender3Owns.push(i) }
-                } else { numTokensOwner1DidNotLend++; }
+                } //else { numTokensOwner1DidNotLend++; }
             }
             await Promise.all(transactions);
             // reset the array
@@ -1170,31 +1171,43 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
             // Connect to the contract as the (second) rightful owner of a bunch of tokens
             contractAsLender2 = await this.contract.connect(accLender2);
-            // Track the number of tokens the owner skips from lending because they own them
-            numTokensOwner2DidNotLend = 0;
+            // // Track the number of tokens the owner skips from lending because they own them
+            // numTokensOwner2DidNotLend = 0;
             // In this loop the rightful owner of a bunch of tokens lends them out to many
-            // addressess
+            // addressess, or burns
             for(i = startingBatchIdOfOwner2; i<startingBatchIdOfOwner2 + numTokensToBatchMint; i++){
                 if (i > firstTokenIdOffset + maxSupply) { break; }
                 // We need to check that the current tokenId (represented by 'i' is)
                 // not owned by the lender, because an owner is not allowed to lend to self.
                 if (i%20 !== idxLender2) {
-                    // The 'i%20' lends tokens rount robin to 20 addresses (as the test blockchain
-                    // being used provides 20 addresses).
-                    transactions.push(contractAsLender2.loan(this.accounts[i%20].address, i));
-                    // Remove the token from the array being used off-chain to track Lender2's ownership
-                    tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1);
-                    // Tracking off-chain the loans made by Lender2
-                    tokensLoanedByLender2.push(i)
-                    // Tracking off-chain the loans made to some arbitrarily chosen accounts
-                    if (i%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(i); }
-                    if (i%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(i); }
-                    if (i%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(i); }
-                    // We are also tracking off-chain the tokens owned by other lenders, so if Lender2
-                    // lends to them, we need to include that in their ownership
-                    if (i%20 === idxLender1) { tokensLender1Owns.push(i) }
-                    if (i%20 === idxLender3) { tokensLender3Owns.push(i) }
-                } else { numTokensOwner2DidNotLend++; }
+                    // In oreder to throw something 'a bit different' at the tests, we'll make this
+                    // loop different from the loop of the other two lenders, by making it so that
+                    // every other iteration of the loop the lender either lends one of their tokens,
+                    // or burns one of their tokens.
+                    if (i%2 === 0) {
+                        // The 'i%20' lends tokens rount robin to 20 addresses (as the test blockchain
+                        // being used provides 20 addresses).
+                        transactions.push(contractAsLender2.loan(this.accounts[i%20].address, i));
+                        // Remove the token from the array being used off-chain to track Lender2's ownership
+                        tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1);
+                        // Tracking off-chain the loans made by Lender2
+                        tokensLoanedByLender2.push(i)
+                        // Tracking off-chain the loans made to some arbitrarily chosen accounts
+                        if (i%20 === idxArbitraryAccount1) { tokensOwnedByArbitraryAccount1.push(i); }
+                        if (i%20 === idxArbitraryAccount2) { tokensOwnedByArbitraryAccount2.push(i); }
+                        if (i%20 === idxArbitraryAccount3) { tokensOwnedByArbitraryAccount3.push(i); }
+                        // We are also tracking off-chain the tokens owned by other lenders, so if Lender2
+                        // lends to them, we need to include that in their ownership
+                        if (i%20 === idxLender1) { tokensLender1Owns.push(i) }
+                        if (i%20 === idxLender3) { tokensLender3Owns.push(i) }
+                    } else {
+                        transactions.push(contractAsLender2.burn(i));
+                        // Remove the token from the array being used off-chain to track Owner2's ownership
+                        tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1);
+                        numTokensOwner2burned++;
+                    }
+                    
+                } //else { numTokensOwner2DidNotLend++; }
             }
             await Promise.all(transactions);
             // reset the array
@@ -1202,8 +1215,8 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
             // Connect to the contract as the (third) rightful owner of a bunch of tokens
             contractAsLender3 = await this.contract.connect(accLender3);
-            // Track the number of tokens the owner skips from lending because they own them
-            numTokensOwner3DidNotLend = 0;
+            // // Track the number of tokens the owner skips from lending because they own them
+            // numTokensOwner3DidNotLend = 0;
             // In this loop the rightful owner of a bunch of tokens lends them out to many
             // addressess
             for(i = startingBatchIdOfOwner3; i<startingBatchIdOfOwner3 + numTokensToBatchMint; i++){
@@ -1226,7 +1239,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
                     // lends to them, we need to include that in their ownership
                     if (i%20 === idxLender1) { tokensLender1Owns.push(i) }
                     if (i%20 === idxLender2) { tokensLender2Owns.push(i) }
-                } else { numTokensOwner3DidNotLend++; }
+                } //else { numTokensOwner3DidNotLend++; }
             }
             await Promise.all(transactions);
             // reset the array
@@ -1234,11 +1247,8 @@ describe('Affe mit Waffe Unit Testing',  () => {
 
             // Check that the contract variables numTokensMinted and totalSupply are still correct
             expect(await this.contract.numTokensMinted()).to.equal(tokensMinted);
-            expect(await this.contract.totalSupply()).to.equal(tokensMinted);
-            // Check totalLoaned taking into account an owner cannot lend to themselves
-            // So the total should be the amount in each batch mint, times 3 (because of three owners that
-            // have loaned out all their tokens that were batch minted to them), minus the number
-            // that each rightful owner was unable to loan (because they cannot loan to themselves.)
+            expect(await this.contract.totalSupply()).to.equal(tokensMinted - numTokensOwner2burned);
+            // Check totalLoaned we are tracking off-chain
             expect(await this.contract.totalLoaned()).to.equal(
                 tokensLoanedByLender1.length + tokensLoanedByLender2.length + tokensLoanedByLender3.length);
             // Check the balanceOf and loanedBalanceOf the rightful owners are correct;
@@ -1275,37 +1285,84 @@ describe('Affe mit Waffe Unit Testing',  () => {
                 .to.eql(tokensOwnedByArbitraryAccount3.sort());
         });
 
-        // it('should allow an owner to recall loans', async () => {
-        //     // Connect to the contract as the (first) rightful owner of a bunch of tokens
-        //     contractAsLender1 = await this.contract.connect(accLender1);
-        //     // In this loop the rightful owner of a bunch of tokens lends them out to many
-        //     // addressess
-        //     for(i = startingBatchIdOfOwner1; i<startingBatchIdOfOwner1+numTokensToBatchMint; i++){
-        //         if (i > firstTokenIdOffset + maxSupply) { break; }
-        //         // We need to check that the current tokenId (represented by 'i' is)
-        //         // not mod 20, because it would not have been able to lend a token to self,
-        //         // so we should not attempt to recall it
-        //         if (i%20 !== idxLender1) {
-        //             // The 'i%20' lends tokens rount robin to 20 addresses (as the test blockchain
-        //             // being used provides 20 addresses).
-        //             transactions.push(contractAsLender1.reclaimLoan(this.accounts[i%20].address, i));
-        //             // Remove the token from the array being used off-chain to track Lender1's ownership
-        //             tokensLender1Owns.push(i);
-        //             // Tracking off-chain the loans made by Lender1
-        //             tokensLoanedByLender1.splice(tokensLoanedByLender1.indexOf(i), 1);
-        //             // Tracking off-chain the loans made to an arbitrarily chosen account
-        //             if (i%20 === idxArbitraryAccount1) {
-        //                 tokensOwnedByArbitraryAccount1.splice(tokensOwnedByArbitraryAccount1.indexOf(i), 1);
-        //             }
-        //             // We are also tracking off-chain the tokens owned by other lenders, so if Lender1
-        //             // lent to them, we need to remove the recalled token from their ownership
-        //             if (i%20 === idxLender2) { tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1) }
-        //             if (i%20 === idxLender3) { tokensLender3Owns.splice(tokensLender2Owns.indexOf(i), 1) }
-        //         }
-        //     }
-        //     await Promise.all(transactions);
-        //     // reset the array
-        //     transactions.length =  0;
+        it('should allow an owner to recall loans', async () => {
+            // Connect to the contract as the (first) rightful owner of a bunch of tokens
+            contractAsLender1 = await this.contract.connect(accLender1);
+            // In this loop the rightful owner of a bunch of tokens that they had lent out,
+            // recalls them back to their address ownership
+            for(i = startingBatchIdOfOwner1; i<startingBatchIdOfOwner1+numTokensToBatchMint; i++){
+                if (i > firstTokenIdOffset + maxSupply) { break; }
+                // We need to check that the current tokenId (represented by 'i' is)
+                // not mod 20, because it would not have been able to lend a token to self,
+                // so we should not attempt to recall it
+                if (i%20 !== idxLender1) {
+                    // The 'i%20' recalls tokens rount robin to 20 addresses (as the test blockchain
+                    // being used provides 20 addresses) - same as they were lent out previously.
+                    transactions.push(contractAsLender1.reclaimLoan(i));
+                    // Add the token to the array being used off-chain to track Lender1's ownership
+                    tokensLender1Owns.push(i);
+                    // Tracking off-chain the loans made by Lender1 (here we remove the loan)
+                    tokensLoanedByLender1.splice(tokensLoanedByLender1.indexOf(i), 1);
+                    // Tracking off-chain the loans made to an arbitrarily chosen accounts (here)
+                    // we remove the tokens from the borrower's ownership
+                    if (i%20 === idxArbitraryAccount1) {
+                        tokensOwnedByArbitraryAccount1.splice(tokensOwnedByArbitraryAccount1.indexOf(i), 1);
+                    }
+                    if (i%20 === idxArbitraryAccount2) {
+                        tokensOwnedByArbitraryAccount2.splice(tokensOwnedByArbitraryAccount2.indexOf(i), 1);
+                    }
+                    if (i%20 === idxArbitraryAccount3) {
+                        tokensOwnedByArbitraryAccount3.splice(tokensOwnedByArbitraryAccount3.indexOf(i), 1);
+                    }
+                    // We are also tracking off-chain the tokens owned by other lenders, so if Lender1
+                    // lent to them, we need to remove the recalled token from their ownership
+                    if (i%20 === idxLender2) { tokensLender2Owns.splice(tokensLender2Owns.indexOf(i), 1) }
+                    if (i%20 === idxLender3) { tokensLender3Owns.splice(tokensLender2Owns.indexOf(i), 1) }
+                }
+            }
+            await Promise.all(transactions);
+            // reset the array
+            transactions.length =  0;
+
+            // Check that the contract variables numTokensMinted and totalSupply are still correct
+            expect(await this.contract.numTokensMinted()).to.equal(tokensMinted);
+            expect(await this.contract.totalSupply()).to.equal(tokensMinted - numTokensOwner2burned);
+            // Check totalLoaned we are tracking off-chain
+            expect(await this.contract.totalLoaned()).to.equal(
+                tokensLoanedByLender1.length + tokensLoanedByLender2.length + tokensLoanedByLender3.length);
+            // Check the balanceOf and loanedBalanceOf the rightful owners are correct;
+            expect(await this.contract.balanceOf(accLender1.address)).to.equal(tokensLender1Owns.length);
+            expect(await this.contract.loanedBalanceOf(accLender1.address)).to.equal(tokensLoanedByLender1.length);
+            expect(await this.contract.balanceOf(accLender2.address)).to.equal(tokensLender2Owns.length);
+            expect(await this.contract.loanedBalanceOf(accLender2.address)).to.equal(tokensLoanedByLender2.length);
+            expect(await this.contract.balanceOf(accLender3.address)).to.equal(tokensLender3Owns.length);
+            expect(await this.contract.loanedBalanceOf(accLender3.address)).to.equal(tokensLoanedByLender3.length);
+            // Check the right ownership list and loans list of each lender. Ethers returns the answer from
+            // the contract as a big number, which needs to be mapped to a regular javascript integer
+            // @dev - NOTE the use of chai's 'eql' operator to compare the arrays, rather than the usual 'equal'
+            expect((await this.contract.ownedTokensByAddress(accLender1.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLender1Owns.sort());
+            expect((await this.contract.loanedTokensByAddress(accLender1.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLoanedByLender1.sort());
+            expect((await this.contract.ownedTokensByAddress(accLender2.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLender2Owns.sort());
+            expect((await this.contract.loanedTokensByAddress(accLender2.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLoanedByLender2.sort());
+            expect((await this.contract.ownedTokensByAddress(accLender3.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLender3Owns.sort());
+            expect((await this.contract.loanedTokensByAddress(accLender3.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensLoanedByLender3.sort());
+            // Also check the balances and listings of the addresses the tokens were lent to (the borrowers)
+            expect(await this.contract.balanceOf(accArbitraryAccount1.address)).to.equal(tokensOwnedByArbitraryAccount1.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount1.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount1.sort());
+            expect(await this.contract.balanceOf(accArbitraryAccount2.address)).to.equal(tokensOwnedByArbitraryAccount2.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount2.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount2.sort());
+            expect(await this.contract.balanceOf(accArbitraryAccount3.address)).to.equal(tokensOwnedByArbitraryAccount3.length);
+            expect((await this.contract.ownedTokensByAddress(accArbitraryAccount3.address)).map(bigNum => bigNum.toNumber()).sort())
+                .to.eql(tokensOwnedByArbitraryAccount3.sort());
+        });
 
             
 
