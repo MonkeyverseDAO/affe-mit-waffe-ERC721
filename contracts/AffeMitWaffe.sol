@@ -12,8 +12,8 @@ import "./ERC721Lending.sol";
 
 /**
  * @title Affe mit Waffe NFT smart contract.
- * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO. With much
- *   gratitude to the collaborative spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
+ * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO. We are
+ *   grateful for the collaborative web3 spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
  *   provided their code for other projects to learn from and use.
  */
 contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
