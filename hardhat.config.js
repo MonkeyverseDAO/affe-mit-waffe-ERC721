@@ -24,10 +24,10 @@ module.exports = {
      hardhat: {
        chainId: 1337,
     },
-    rinkeby: {
-      url: NODE_PROVIDER_API_URL,
-      accounts: [`0x${PRIVATE_KEY}`]
-   }
+    // rinkeby: {
+    //   url: NODE_PROVIDER_API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`]
+    // }
   },
   gasReporter: {
     currency: 'USD',
