@@ -222,7 +222,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
             const contractNoRole = await this.contract.connect(this.accounts[account.accNoRoles2.idx])
             await expect(contractNoRole.transferFrom(
                 this.accounts[account.accNoRoles1.idx].address, this.accounts[account.accNoRoles2.idx].address, tokenId))
-                .to.be.revertedWith('ERC721: transfer caller is not owner nor approved');
+                .to.be.revertedWith('ERC721: caller is not token owner nor approved');
         });
     });
 
@@ -251,7 +251,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // (Note in the line below, even though 'ownerOf' is a read-only function, so we should not
             // need to 'connect', the 'to.be.reverdedWith' does not seem to work without a connection.)
             await expect(this.contract.connect(this.accounts[account.accNoRoles2.idx]).ownerOf(tokenId))
-                .to.be.revertedWith('ERC721: owner query for nonexistent token');
+                .to.be.revertedWith('ERC721: invalid token ID');
         });
 
         it('should not allow an account to burn a token they do not own', async () => {
@@ -263,7 +263,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // Try to burn the token connected to the contract as someone who is not the token owner
             // expecting it to fail
             await expect(this.contract.connect(this.accounts[account.accNoRoles2.idx]).burn(tokenId))
-                .to.be.revertedWith('ERC721Burnable: caller is not owner nor approved');
+                .to.be.revertedWith('ERC721: caller is not token owner nor approved');
         });
     });
 
@@ -1203,13 +1203,13 @@ describe('Affe mit Waffe Unit Testing',  () => {
             // both versions of the functions separately.
             await expect(contractAsArbitraryAccount["safeTransferFrom(address,address,uint256)"]
                 (addressBorrower, accArbitraryAccount1.address, tokenId))
-                .to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+                .to.be.revertedWith("ERC721: caller is not token owner nor approved'");
             await expect(contractAsArbitraryAccount["safeTransferFrom(address,address,uint256,bytes)"]
                 (addressBorrower, accArbitraryAccount1.address, tokenId, []))
-                .to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+                .to.be.revertedWith("ERC721: caller is not token owner nor approved'");
             // Also try the regular transferFrom function    
             await expect(contractAsArbitraryAccount.transferFrom(addressBorrower, accArbitraryAccount1.address, tokenId))
-                .to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+                .to.be.revertedWith("ERC721: caller is not token owner nor approved'");
             // Expect ownership and balances to still be correct
             expect(await this.contract.ownerOf(tokenId)).to.equal(addressBorrower);
             expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(3);
@@ -1229,7 +1229,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
             const contractAsArbitraryAccount = await this.contract.connect(accArbitraryAccount1);
             // Try to burn the token expecting to fail
             await expect(contractAsArbitraryAccount.burn(tokenId))
-                .to.be.revertedWith("ERC721Burnable: caller is not owner nor approved");
+                .to.be.revertedWith("ERC721: caller is not token owner nor approved'");
             // Expect ownership and balances to still be correct
             expect(await this.contract.ownerOf(tokenId)).to.equal(addressBorrower);
             expect(await this.contract.balanceOf(addressRightfulOwner)).to.equal(3);
