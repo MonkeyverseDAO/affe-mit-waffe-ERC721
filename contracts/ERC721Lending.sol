@@ -8,13 +8,14 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @notice Implementation of ERC-721 NFT lending. The code below was written by using, as a
- *   starting point, the code made available by the Meta Angels NFT team (thank you to that team
+ *   starting point, the code made public by the Meta Angels NFT team (thank you to that team
  *   for making their code available for other projects to use!)
- *   The code has been modified in several ways, most importantly that in the original
+ *   The code has been modified in several ways, most importantly, that in the original
  *   implementation it was included in the main contract, whereas here we have abstracted the
  *   functionality into its own parent contract. Also, some additional events have been added,
  *   and checking whether loans are paused has been moved to a Modifier. In addition a function
- *   has been added to allow a borrower to initiate the return of a loan.
+ *   has been added to allow a borrower to initiate the return of a loan (rather than only 
+ *   allowing for the original lender to 'recall' the loan.)
  *   Note that when lending, the meaning of terms like 'owner' become ambiguous, particularly
  *   because once a token is lent, as far as the ERC721 standard is concerned, the borrower is
  *   technically the owner. (In other words, the function 'ownerOf()' reqired by EIP-721 will
