@@ -323,9 +323,4 @@ contract AmWd02 is ERC721, ERC721Enumerable, Pausable, AccessControl,
     {
         return super.supportsInterface(interfaceId);
     }
-
-    // ************************************* FOR TEST/DEV ENV ONLY *************************************
-    function destroyContract(address payable addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        selfdestruct(addr);
-    }
 }
