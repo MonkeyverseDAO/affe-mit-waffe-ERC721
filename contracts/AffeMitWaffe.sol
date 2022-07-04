@@ -10,13 +10,56 @@ import "./URIManager.sol";
 import "./ERC2981GlobalRoyalties.sol";
 import "./ERC721Lending.sol";
 
+//                                   .,*.                                   
+//                                  *(//*                                   
+//                          .      .//&/                                    
+//              .*.       (*/// , *(/,*  ,,,                                
+//           ./&#*,(*.,   ,/((%./#(//#.//((#(###/**///#%#%(%(**             
+//           //*/%&*#&/*/,.*/,*%##/*,(/*(/*#,,,*(#&(//                      
+//                    (*#/(#/(*,        */%(/*/.#,,                         
+//                  /#(.&(* //(/,/        ,,./**                            
+//                ./(%//,         .,*(/(((*/%%*.,                           
+//                */,.(/.   ,#%%,.      */.(*/*.                            
+//                 *&%(%&%#&%(##%&(#   %*,(#&@/                             
+//                  *#(/%*%(/*(%,*#%%(%%/##(%*.                             
+//                    *.*/%,/,/*(,//%(#/#%,#*,                              
+//                     . %/(%(#*##%#%(*,/(**                                
+//                     ,(@##*&**##**/#/(/,                                  
+//                      (,%#((/%((//(%/%.                                   
+//                      , **,(/**/*/**((,                                   
+//                       / (,..  ../*.*#,                                   
+//                        ,(*##((%((#(/@,                                   
+//                         (.%*( * .*(.&,                                   
+//                          (/#%#/%#%(*%,                                   
+//                         */,###(%%(*%#/                                   
+//                       ,//#%**(//,,(((*.                                  
+//                      ((*..**((#%/*(*//*,                                 
+//                     ..%#,*((#.  ,.(,(/**                                 
+//                      /...**,     .,/((/,                                 
+//                      /. %*/(,     /.((%.*                                
+//                        *#/,%./     ( #/,                                 
+//                         */**       /.//#,                                
+//                     (*#**,*#.      (**#&,                                
+//                                 *,,/##,       
+
 /**
  * @title Affe mit Waffe NFT smart contract.
- * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO. We are
- *   grateful for the collaborative web3 spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
- *   provided their code for other projects to learn from and use.
+ * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO.
+ *   "Affe mit Waffe" is a symbiosis of artificial intelligence and the human mind. The
+ *   artwork is a stencil inspired by graffiti culture and lays the foundation for creative
+ *   development. The colors were decided by our AI – the Real Vision Bot. It determines
+ *   the colors based on emotions obtained via natural language processing from the Real
+ *   Vision interviews. Human creativity completes the piece for the finishing touch. Each
+ *   Affe wants to connect, contrast, and stand out. Like the different colors and emotions
+ *   of the day, the Affen are born to connect people, minds and ideas, countries, racesand
+ *   genders through comparison and contrast.Despite their bossy appearance they are a
+ *   happy hungry bunch at heart. They may look tough on the outside but are soft on the
+ *   inside – and are easy to win over with a few bananas. The raised gun symbolizes our
+ *   own strength and talents; it shall motivate us to use them wisely to overcome our
+ *   differences for tolerance and resolve our conflicts peacefully.
  */
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
+ 
+contract AmWd01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
                    ERC721Burnable, ERC2981GlobalRoyalties, URIManager, ERC721Lending {
     // Create the hashes that identify various roles. Note that the naming below diverges
     // from the naming of the DEFAULT_ADMIN_ROLE, whereby OpenZeppelin chose to put
