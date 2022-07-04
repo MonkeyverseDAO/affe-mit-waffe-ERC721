@@ -9,13 +9,13 @@ use(solidity)
 
 
 require('dotenv').config();
-const { CONTRACT_NAME, CONTRACT_SYMBOL, INITIAL_BASE_TOKEN_URI, INITIAL_CONTRACT_URI } = process.env;
+const { NFT_NAME, NFT_SYMBOL, INITIAL_BASE_TOKEN_URI, COLLECTION_URI } = process.env;
 // Below are the expected parameters when deploying the contract
-const expectedContractName = 'AmWt01';
-const expectedTokenName = CONTRACT_NAME;
-const expectedTokenSymbol = CONTRACT_SYMBOL;
+const expectedContractName = 'AmWd02';
+const expectedTokenName = NFT_NAME;
+const expectedTokenSymbol = NFT_SYMBOL;
 const expectedBaseTokenURI = INITIAL_BASE_TOKEN_URI;
-const expectedContractURI = INITIAL_CONTRACT_URI;
+const expectedContractURI = COLLECTION_URI;
 
 
 // Define an object to store information about roles
@@ -125,6 +125,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
     // it cannot perform any 'write' actions without connecting as a proper signer somehow.
     describe('Test function deploy()', () => {
         it('should return a READ-ONLY contract object', async () => {
+
         this.contract = await deployAMW721();
         expect(this.contract.signer).to.equal(null);
         expect(await this.contract.ROLE_MINTER()).to.equal(role.minter.hex);

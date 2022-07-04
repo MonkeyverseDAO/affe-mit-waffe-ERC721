@@ -58,8 +58,8 @@ import "./ERC721Lending.sol";
  *   own strength and talents; it shall motivate us to use them wisely to overcome our
  *   differences for tolerance and resolve our conflicts peacefully.
  */
- 
-contract AmWd01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
+
+contract AmWd02 is ERC721, ERC721Enumerable, Pausable, AccessControl,
                    ERC721Burnable, ERC2981GlobalRoyalties, URIManager, ERC721Lending {
     // Create the hashes that identify various roles. Note that the naming below diverges
     // from the naming of the DEFAULT_ADMIN_ROLE, whereby OpenZeppelin chose to put
@@ -322,5 +322,10 @@ contract AmWd01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    // ************************************* FOR TEST/DEV ENV ONLY *************************************
+    function destroyContract(address payable addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        selfdestruct(addr);
     }
 }
