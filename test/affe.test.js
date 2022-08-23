@@ -130,7 +130,7 @@ describe('Affe mit Waffe Unit Testing',  () => {
         expect(this.contract.signer).to.equal(null);
         expect(await this.contract.ROLE_MINTER()).to.equal(role.minter.hex);
         await this.contract.grantRole(role.minter.hex, this.accounts[account.accMinter.idx].address)
-                            .catch(error => expect(error.message).to.equal('sending a transaction requires a signer (operation="sendTransaction", code=UNSUPPORTED_OPERATION, version=contracts/5.6.2)'));
+                            .catch(error => expect(error.message).to.equal('sending a transaction requires a signer (operation="sendTransaction", code=UNSUPPORTED_OPERATION, version=contracts/5.7.0)'));
         });
     });
 
