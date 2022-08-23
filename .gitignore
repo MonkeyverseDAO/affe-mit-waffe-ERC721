@@ -1,2 +1,4 @@
 .deps/
 *artifacts*
+scripts/
+custom_scripts/

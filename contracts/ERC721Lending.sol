@@ -8,13 +8,14 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @notice Implementation of ERC-721 NFT lending. The code below was written by using, as a
- *   starting point, the code made available by the Meta Angels NFT team (thank you to that team
+ *   starting point, the code made public by the Meta Angels NFT team (thank you to that team
  *   for making their code available for other projects to use!)
- *   The code has been modified in several ways, most importantly that in the original
+ *   The code has been modified in several ways, most importantly, that in the original
  *   implementation it was included in the main contract, whereas here we have abstracted the
  *   functionality into its own parent contract. Also, some additional events have been added,
  *   and checking whether loans are paused has been moved to a Modifier. In addition a function
- *   has been added to allow a borrower to initiate the return of a loan.
+ *   has been added to allow a borrower to initiate the return of a loan (rather than only 
+ *   allowing for the original lender to 'recall' the loan.)
  *   Note that when lending, the meaning of terms like 'owner' become ambiguous, particularly
  *   because once a token is lent, as far as the ERC721 standard is concerned, the borrower is
  *   technically the owner. (In other words, the function 'ownerOf()' reqired by EIP-721 will
@@ -67,7 +68,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      * @param fromBorrower is the address the token was lent out to.
      * @param item is the tokenID representing the token that was lent.
      */
-    event LoanRetrieved(address indexed byOriginalOwner, address indexed fromBorrower, uint item);
+    event LoanReclaimed(address indexed byOriginalOwner, address indexed fromBorrower, uint item);
     /**
      * @notice Emitted when a loan is returned by the borrower.
      * @param byBorrower is the address that token has been lent to.
@@ -95,7 +96,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      * @param tokenId is the integer ID of the token to loan.
      * @param receiver is the address that the token will be loaned to.
      */
-    function loan(uint256 tokenId, address receiver) external nonReentrant allowIfLendingNotPaused {
+    function loan(address receiver, uint256 tokenId) external nonReentrant allowIfLendingNotPaused {
         require(msg.sender == ownerOf(tokenId), "ERC721Lending: Trying to lend a token that is not owned.");
         require(msg.sender != receiver, "ERC721Lending: Lending to self (the current owner's address) is not permitted.");
         require(receiver != address(0), "ERC721Lending: Loans to the zero 0x0 address are not permitted.");
@@ -144,7 +145,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
         // pass an empty string as the 'data'.)
         _safeTransfer(borrowerAddress, rightfulOwner, tokenId, "");
 
-        emit LoanRetrieved(rightfulOwner, borrowerAddress, tokenId);
+        emit LoanReclaimed(rightfulOwner, borrowerAddress, tokenId);
     }
 
     /**
@@ -207,6 +208,7 @@ abstract contract ERC721Lending is ERC721, ReentrancyGuard {
      *   them to implement their own restrictions, such as Access Control.
      */
     function _unpauseLending() internal {
+        require(loansAreCurrentlyPaused, "ERC721Lending: Lending of tokens is already in unpaused state.");
         loansAreCurrentlyPaused = false;
         emit LendingUnpaused(msg.sender);
     }

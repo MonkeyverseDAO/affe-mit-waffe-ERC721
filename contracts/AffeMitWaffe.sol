@@ -10,13 +10,56 @@ import "./URIManager.sol";
 import "./ERC2981GlobalRoyalties.sol";
 import "./ERC721Lending.sol";
 
+//                                       .,*.                                   
+//                                      *(//*                                   
+//                              .      .//&/                                    
+//                  .*.       (*/// , *(/,*  ,,,                                
+//               ./&#*,(*.,   ,/((%./#(//#.//((#(###/**///#%#%(%(**             
+//               //*/%&*#&/*/,.*/,*%##/*,(/*(/*#,,,*(#&(//                      
+//                        (*#/(#/(*,        */%(/*/.#,,                         
+//                      /#(.&(* //(/,/        ,,./**                            
+//                    ./(%//,         .,*(/(((*/%%*.,                           
+//                    */,.(/.   ,#%%,.      */.(*/*.                            
+//                     *&%(%&%#&%(##%&(#   %*,(#&@/                             
+//                      *#(/%*%(/*(%,*#%%(%%/##(%*.                             
+//                        *.*/%,/,/*(,//%(#/#%,#*,                              
+//                         . %/(%(#*##%#%(*,/(**                                
+//                         ,(@##*&**##**/#/(/,                                  
+//                          (,%#((/%((//(%/%.                                   
+//                          , **,(/**/*/**((,                                   
+//                           / (,..  ../*.*#,                                   
+//                            ,(*##((%((#(/@,                                   
+//                             (.%*( * .*(.&,                                   
+//                              (/#%#/%#%(*%,                                   
+//                             */,###(%%(*%#/                                   
+//                           ,//#%**(//,,(((*.                                  
+//                          ((*..**((#%/*(*//*,                                 
+//                         ..%#,*((#.  ,.(,(/**                                 
+//                          /...**,     .,/((/,                                 
+//                          /. %*/(,     /.((%.*                                
+//                            *#/,%./     ( #/,                                 
+//                             */**       /.//#,                                
+//                         (*#**,*#.      (**#&,                                
+//                                     *,,/##,       
+
 /**
  * @title Affe mit Waffe NFT smart contract.
- * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO. With much
- *   gratitude to the collaborative spirit of OpenZeppelin, Real Vision, and Meta Angels, who have
- *   provided their code for other projects to learn from and use.
+ * @notice Implementation of ERC-721 standard for the genesis NFT of the Monkeyverse DAO.
+ *   "Affe mit Waffe" is a symbiosis of artificial intelligence and the human mind. The
+ *   artwork is a stencil inspired by graffiti culture and lays the foundation for creative
+ *   development. The colors were decided by our AI – the Real Vision Bot. It determines
+ *   the colors based on emotions obtained via natural language processing from the Real
+ *   Vision interviews. Human creativity completes the piece for the finishing touch. Each
+ *   Affe wants to connect, contrast, and stand out. Like the different colors and emotions
+ *   of the day, the Affen are born to connect people, minds and ideas, countries, racesand
+ *   genders through comparison and contrast.Despite their bossy appearance they are a
+ *   happy hungry bunch at heart. They may look tough on the outside but are soft on the
+ *   inside – and are easy to win over with a few bananas. The raised gun symbolizes our
+ *   own strength and talents; it shall motivate us to use them wisely to overcome our
+ *   differences for tolerance and resolve our conflicts peacefully.
  */
-contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
+
+contract AmWd02 is ERC721, ERC721Enumerable, Pausable, AccessControl,
                    ERC721Burnable, ERC2981GlobalRoyalties, URIManager, ERC721Lending {
     // Create the hashes that identify various roles. Note that the naming below diverges
     // from the naming of the DEFAULT_ADMIN_ROLE, whereby OpenZeppelin chose to put
@@ -232,19 +275,25 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
      *   tokenIds on loan.
      * @return an array with the tokenIds currently on loan by the origina/rightful owner.
      */
-    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory ) {
+    function loanedTokensByAddress(address rightfulOwner) external view returns (uint256[] memory) {
         require(rightfulOwner != address(0), "ERC721Lending: Balance query for the zero address");
         uint256 numTokensLoanedByRightfulOwner = loanedBalanceOf(rightfulOwner);
         uint256 numGlobalTotalTokens = totalSupply();
+        uint256 nextTokenIdToQuery;
 
         uint256[] memory theTokenIDsOfRightfulOwner = new uint256[](numTokensLoanedByRightfulOwner);
         // If the address in question hasn't lent any tokens, there is no reason to enter the loop.
         if (numTokensLoanedByRightfulOwner > 0) {
             uint256 numMatchingTokensFound = 0;
-            // Continue searching in the loop until ...
-            for (uint256 i = 0; i < numGlobalTotalTokens && numMatchingTokensFound < numTokensLoanedByRightfulOwner; i++) {
-                if (mapFromTokenIdToRightfulOwner[i] == rightfulOwner) {
-                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = i;
+            // Continue searching in the loop until either all tokens in the collection have been examined
+            // or the number of tokens being searched for (the number owned originally by the rightful
+            // owner) have been found.
+            for (uint256 i = 0; numMatchingTokensFound < numTokensLoanedByRightfulOwner && i < numGlobalTotalTokens; i++) {
+                // TokenIds may not be sequential or even within a specific range, so we get the next tokenId (to 
+                // lookup in the mapping) from the global array holding all tokens.
+                nextTokenIdToQuery = tokenByIndex(i);
+                if (mapFromTokenIdToRightfulOwner[nextTokenIdToQuery] == rightfulOwner) {
+                    theTokenIDsOfRightfulOwner[numMatchingTokensFound] = nextTokenIdToQuery;
                     numMatchingTokensFound++;
                 }
             }
@@ -263,11 +312,8 @@ contract AmWt01 is ERC721, ERC721Enumerable, Pausable, AccessControl,
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
-    // The following functions are overrides required by Solidity.
 
-    function _baseURI() internal view override returns (string memory) {
-        return _getBaseURI();
-    }
+    // The following functions are overrides required by Solidity.
 
     function supportsInterface(bytes4 interfaceId)
         public
